@@ -1,5 +1,6 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files#
 
+#FRONTEND - React Native
 # dependencies
 node_modules/
 
@@ -35,3 +36,17 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+
+## BACKEND - Node.js + Express
+
+#dependencias
+backend/node_modules/
+
+backend/dist/
+
+#archivo con variables de entorno
+backend/.env
+
+# Otros
+.DS_Store
