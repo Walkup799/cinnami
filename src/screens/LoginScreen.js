@@ -14,34 +14,21 @@ import { globalStyles, colors } from '../styles/globalStyles';
 import { Ionicons } from '@expo/vector-icons';
 
 const LoginScreen = ({ navigation, setUserRole }) => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
+  const [identifierError, setIdentifierError] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
 
-  const validCredentials = {
-    admin: { email: 'admin@example.com', password: 'admin123' },
-    user: { email: 'user@example.com', password: 'user123' }
-  };
-
-  const validateEmail = (email) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  };
-
-  const handleLogin = () => {
-    setEmailError('');
+  const handleLogin = async () => {
+    setIdentifierError('');
     setPasswordError('');
-    
+
     let isValid = true;
 
-    if (!email.trim()) {
-      setEmailError('Por favor ingrese su correo electrónico');
-      isValid = false;
-    } else if (!validateEmail(email)) {
-      setEmailError('Ingrese un correo electrónico válido');
+    if (!identifier.trim()) {
+      setIdentifierError('Por favor ingrese su correo electrónico o nombre de usuario');
       isValid = false;
     }
 
@@ -57,31 +44,46 @@ const LoginScreen = ({ navigation, setUserRole }) => {
 
     setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      const response = await fetch('http://192.168.1.7:3000/api/auth/login', { //esta es la ip de mi computadora, se debe cambiar si la quieres probar en otro dispositivo
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ identifier, password })
+      });
+
+      const data = await response.json();
       setIsLoading(false);
-      
-      if (email === validCredentials.admin.email && password === validCredentials.admin.password) {
-        console.log('DEBUG - Rol asignado: admin');
-        setUserRole('admin');
-      } else if (email === validCredentials.user.email && password === validCredentials.user.password) {
-        console.log('DEBUG - Rol asignado: user');
-        setUserRole('user');
+
+      if (response.ok) {
+        const userRole = data.user?.role || 'user'; // 'docente' si no viene nada
+        setUserRole(userRole); // Esto es lo único necesario, App.js se encarga del resto
       } else {
-        const emailExists = Object.values(validCredentials).some(cred => cred.email === email);
-        
-        if (!emailExists) {
-          setEmailError('Correo electrónico no registrado');
-        } else {
+        if (data.message?.toLowerCase().includes('contraseña')) {
           setPasswordError('Contraseña incorrecta');
-        }
-        
-        Alert.alert(
+        } else if (data.message?.toLowerCase().includes('usuario')) {
+          setIdentifierError('Correo electrónico o usuario no registrado');
+        } else {
+
+          Alert.alert(
           'Error de autenticación',
-          emailExists ? 'Contraseña incorrecta' : 'Correo electrónico no registrado',
+          data.message || 'Datos inválidos',
           [{ text: 'OK' }]
         );
-      }
-    }, 1500);
+
+        }
+ 
+      } //else principal
+    } catch (error) {
+      setIsLoading(false);
+      console.error('ERROR LOGIN:', error);
+      Alert.alert(
+        'Error de conexión',
+        'No se pudo conectar con el servidor',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   return (
@@ -98,20 +100,20 @@ const LoginScreen = ({ navigation, setUserRole }) => {
           <View style={styles.inputContainer}>
             <Ionicons name="mail-outline" size={20} color={colors.textLight} style={styles.icon} />
             <TextInput
-              style={[globalStyles.input, styles.input, emailError ? styles.inputError : null]}
-              placeholder="Correo electrónico"
+              placeholder="Correo electrónico o nombre de usuario"
               placeholderTextColor={colors.textLight}
-              value={email}
+              value={identifier}
               onChangeText={(text) => {
-                setEmail(text);
-                setEmailError('');
+                setIdentifier(text);
+                setIdentifierError('');
               }}
+              style={[globalStyles.input, styles.input, identifierError ? styles.inputError : null]}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
             />
           </View>
-          {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+          {identifierError ? <Text style={styles.errorText}>{identifierError}</Text> : null}
         </View>
 
         <View style={styles.inputGroup}>
@@ -143,9 +145,9 @@ const LoginScreen = ({ navigation, setUserRole }) => {
         </View>
 
         <TouchableOpacity 
-          style={[globalStyles.button, styles.button, (isLoading || !email || !password) ? styles.buttonDisabled : null]}
+          style={[globalStyles.button, styles.button, (isLoading || !identifier || !password) ? styles.buttonDisabled : null]}
           onPress={handleLogin}
-          disabled={isLoading || !email || !password}
+          disabled={isLoading || !identifier || !password}
         >
           {isLoading ? (
             <ActivityIndicator color={colors.white} />
@@ -162,12 +164,7 @@ const LoginScreen = ({ navigation, setUserRole }) => {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>¿No tienes una cuenta?</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-          <Text style={[styles.footerText, styles.footerLink]}> Regístrate</Text>
-        </TouchableOpacity>
-      </View>
+      
     </KeyboardAvoidingView>
   );
 };

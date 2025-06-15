@@ -27,7 +27,7 @@ const App = () => {
     <NavigationContainer>
       {userRole === 'admin' ? (
         <AdminTabNavigator />
-      ) : userRole === 'user' ? (
+      ) : userRole === 'docente' ? (
         <UserStackNavigator />
       ) : (
         <AuthNavigator setUserRole={setUserRole} />

@@ -9,13 +9,18 @@ const cache = new NodeCache();
 
 // LOGIN
 export const login = async (req: Request, res: Response) => {
-    const { username, password } = req.body;
+    const { identifier, password } = req.body;
 
     try {
-        const user = await User.findOne({ username });
+        const user = await User.findOne({
+            $or: [
+                { username: identifier },
+                { email: identifier }
+            ]
+        });
 
         if (!user) {
-            return res.status(401).json({ message: "Usuario no encontrado" });
+            return res.status(401).json({ message: "Correo electrónico o usuario no registrado" }); //opcion 2
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
@@ -33,6 +38,7 @@ export const login = async (req: Request, res: Response) => {
             user: {
                 id: user._id,
                 username: user.username,
+                email: user.email,
                 role: user.role
             }
         });
