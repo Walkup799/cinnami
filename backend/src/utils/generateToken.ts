@@ -13,3 +13,13 @@ export const generateAccessToken = (userId: string): string => {
     { expiresIn: '15m' }
   );
 };
+
+
+// como un updateTime , es válido para 7 días
+export const generateRefreshToken = (userId: string): string => {
+  return jwt.sign(
+    { userId },
+    process.env.REFRESH_SECRET || 'refresh_secret',
+    { expiresIn: '7d' }
+  );
+};

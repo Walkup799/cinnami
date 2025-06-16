@@ -20,7 +20,8 @@
     "express": "^5.1.0",
     "mongoose": "^8.15.2",
     "morgan": "^1.10.0",
-    "node-cache": "^5.1.2"
+    "node-cache": "^5.1.2",
+    "@react-native-async-storage/async-storage": "2.1.2"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",

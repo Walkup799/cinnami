@@ -13,6 +13,8 @@ import {
 import { globalStyles, colors } from '../styles/globalStyles';
 import { Ionicons } from '@expo/vector-icons';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const LoginScreen = ({ navigation, setUserRole }) => {
   const [identifier, setIdentifier] = useState('');
   const [identifierError, setIdentifierError] = useState('');
@@ -57,7 +59,15 @@ const LoginScreen = ({ navigation, setUserRole }) => {
       setIsLoading(false);
 
       if (response.ok) {
+
+        
         const userRole = data.user?.role || 'user'; // 'docente' si no viene nada
+
+        await AsyncStorage.setItem('userToken', data.accessToken); // token
+        await AsyncStorage.setItem('refreshToken', data.refreshToken); // refresh token
+        await AsyncStorage.setItem('userRole', data.user.role);    // rol
+        
+
         setUserRole(userRole); // Esto es lo único necesario, App.js se encarga del resto
       } else {
         if (data.message?.toLowerCase().includes('contraseña')) {

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { generateAccessToken } from "../utils/generateToken";
+import { generateAccessToken, generateRefreshToken } from '../utils/generateToken';
 import NodeCache from "node-cache";
 import dayjs from "dayjs";
 import { User } from "../models/User";
@@ -29,12 +29,14 @@ export const login = async (req: Request, res: Response) => {
         }
 
         const accessToken = generateAccessToken(user._id.toString());
+        const refreshToken = generateRefreshToken(user._id.toString());
 
         cache.set(user._id.toString(), accessToken, 60 * 15); // TTL: 15 minutos
 
         return res.json({
             message: 'Login exitoso',
             accessToken,
+            refreshToken, // nuevo
             user: {
                 id: user._id,
                 username: user.username,
@@ -79,6 +81,24 @@ export const updateTime = (req: Request, res: Response) => {
     cache.ttl(userId, 60 * 15); // 15 minutos
     res.json({ message: 'Tiempo actualizado correctamente' });
 };
+
+//REFRESH TOKEN
+export const refreshToken = async (req: Request, res: Response) => {
+  const { token } = req.body;
+
+  if (!token) return res.status(401).json({ message: 'Token de actualización requerido' });
+
+  try {
+    const decoded = jwt.verify(token, process.env.REFRESH_SECRET || 'refresh_secret') as { userId: string };
+
+    const newAccessToken = generateAccessToken(decoded.userId);
+    const newRefreshToken = generateRefreshToken(decoded.userId);
+    return res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+  } catch (err) {
+    return res.status(403).json({ message: 'Refresh token inválido o expirado' });
+  }
+};
+
 
 // OBTENER TODOS LOS USUARIOS
 export const getAllUsers = async (req: Request, res: Response) => {

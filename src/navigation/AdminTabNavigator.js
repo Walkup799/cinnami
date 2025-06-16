@@ -9,6 +9,31 @@ import ManageUsersScreen from '../screens/admin/ManageUsersScreen';
 import { colors, globalStyles } from '../styles/globalStyles';
 import { useNavigation } from '@react-navigation/native';
 
+import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+
+const handleLogout = () => {
+  Alert.alert(
+    'Cerrar sesión',
+    '¿Estás seguro de que quieres cerrar sesión?',
+    [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Cerrar sesión',
+        onPress: async () => {
+          await AsyncStorage.removeItem('userToken');
+          await AsyncStorage.removeItem('refreshToken');
+          await AsyncStorage.removeItem('userRole');
+          setUserRole(null); // Esto redirige a Login porque lo controla App.js
+        },
+        style: 'destructive'
+      }
+    ]
+  );
+};
+
+
 const Tab = createBottomTabNavigator();
 
 const AdminTabNavigator = () => {
