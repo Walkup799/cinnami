@@ -5,12 +5,15 @@ import UserTabNavigator from './UserTabNavigator';
 
 const Stack = createNativeStackNavigator();
 
-const UserStackNavigator = () => {
+const UserStackNavigator = ({ setUserRole }) => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="UserTabs" component={UserTabNavigator} />
+      <Stack.Screen name="UserTabs">
+        {() => <UserTabNavigator setUserRole={setUserRole} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 };
+
 
 export default UserStackNavigator;

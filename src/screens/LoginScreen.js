@@ -66,6 +66,7 @@ const LoginScreen = ({ navigation, setUserRole }) => {
         await AsyncStorage.setItem('userToken', data.accessToken); // token
         await AsyncStorage.setItem('refreshToken', data.refreshToken); // refresh token
         await AsyncStorage.setItem('userRole', data.user.role);    // rol
+        console.log('Rol guardado:', data.user.role);
         
 
         setUserRole(userRole); // Esto es lo único necesario, App.js se encarga del resto

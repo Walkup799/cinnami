@@ -6,7 +6,7 @@ import AuthNavigator from './src/navigation/AuthNavigator';
 import AdminTabNavigator from './src/navigation/AdminTabNavigator';
 import UserStackNavigator from './src/navigation/UserStackNavigator';
 import { colors } from './src/styles/globalStyles';
-import { handleTokenRefresh } from './src/utils/authHerpers'; 
+import { handleTokenRefresh } from './src/utils/authHelpers'; 
 
 const App = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -51,14 +51,14 @@ const App = () => {
 
   return (
     <NavigationContainer>
-      {userRole === 'admin' ? (
-        <AdminTabNavigator />
-      ) : userRole === 'docente' ? (
-        <UserStackNavigator />
-      ) : (
-        <AuthNavigator setUserRole={setUserRole} />
-      )}
-    </NavigationContainer>
+    {userRole === 'admin' ? (
+      <AdminTabNavigator setUserRole={setUserRole} />
+    ) : userRole === 'docente' ? (
+      <UserStackNavigator setUserRole={setUserRole} />
+    ) : (
+      <AuthNavigator setUserRole={setUserRole} />
+    )}
+  </NavigationContainer>
   );
 };
 

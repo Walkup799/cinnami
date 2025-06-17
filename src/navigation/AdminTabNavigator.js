@@ -1,97 +1,108 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { Portal, Dialog, Paragraph, Button, Provider as PaperProvider } from 'react-native-paper';
+
 import AdminHomeScreen from '../screens/admin/AdminHomeScreen';
 import ManageCardsScreen from '../screens/admin/ManageCardsScreen';
 import DoorStatusScreen from '../screens/admin/DoorStatusScreen';
 import ManageUsersScreen from '../screens/admin/ManageUsersScreen';
 import { colors, globalStyles } from '../styles/globalStyles';
-import { useNavigation } from '@react-navigation/native';
-
-import { Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-
-const handleLogout = () => {
-  Alert.alert(
-    'Cerrar sesión',
-    '¿Estás seguro de que quieres cerrar sesión?',
-    [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Cerrar sesión',
-        onPress: async () => {
-          await AsyncStorage.removeItem('userToken');
-          await AsyncStorage.removeItem('refreshToken');
-          await AsyncStorage.removeItem('userRole');
-          setUserRole(null); // Esto redirige a Login porque lo controla App.js
-        },
-        style: 'destructive'
-      }
-    ]
-  );
-};
-
 
 const Tab = createBottomTabNavigator();
 
-const AdminTabNavigator = () => {
-  const navigation = useNavigation();
+const AdminTabNavigator = ({ setUserRole }) => {
+  const [visible, setVisible] = useState(false);
 
-  const handleLogout = () => {
-    navigation.navigate('Auth', {
-      screen: 'Login',
-      params: { logout: true }
-    });
+  const showDialog = () => setVisible(true);
+  const hideDialog = () => setVisible(false);
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('userToken');
+      await AsyncStorage.removeItem('refreshToken');
+      await AsyncStorage.removeItem('userRole');
+      setUserRole(null); 
+      hideDialog();
+    } catch (error) {
+      console.log('Error al cerrar sesión:', error);
+    }
   };
 
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-
-          if (route.name === 'Inicio') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Tarjetas') {
-            iconName = focused ? 'card' : 'card-outline';
-          } else if (route.name === 'Puerta') {
-            iconName = focused ? 'exit' : 'exit-outline';
-          } else if (route.name === 'Usuarios') {
-            iconName = focused ? 'people' : 'people-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: colors.canela,
-        tabBarInactiveTintColor: colors.textLight,
-        tabBarStyle: globalStyles.tabBar,
-        tabBarLabelStyle: globalStyles.tabLabel,
-        headerStyle: {
-          backgroundColor: colors.beige,
-        },
-        headerTitleStyle: {
-          color: colors.textDark,
-        },
-        headerRight: () => (
-          <TouchableOpacity onPress={handleLogout}>
-            <Ionicons
-              name="log-out-outline"
-              size={24}
-              color={colors.canela}
-              style={{ marginRight: 15 }}
-            />
-          </TouchableOpacity>
-        ),
-      })}
+    <PaperProvider
+      settings={{
+        icon: props => <Ionicons {...props} color={colors.canela} />,
+      }}
     >
-      <Tab.Screen name="Inicio" component={AdminHomeScreen} />
-      <Tab.Screen name="Tarjetas" component={ManageCardsScreen} />
-      <Tab.Screen name="Usuarios" component={ManageUsersScreen} />
-      <Tab.Screen name="Puerta" component={DoorStatusScreen} />
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName;
 
-    </Tab.Navigator>
+            if (route.name === 'Inicio') iconName = focused ? 'home' : 'home-outline';
+            else if (route.name === 'Tarjetas') iconName = focused ? 'card' : 'card-outline';
+            else if (route.name === 'Puerta') iconName = focused ? 'exit' : 'exit-outline';
+            else if (route.name === 'Usuarios') iconName = focused ? 'people' : 'people-outline';
+
+            return <Ionicons name={iconName} size={size} color={color} />;
+          },
+          headerRight: () => (
+            <TouchableOpacity onPress={showDialog}>
+              <Ionicons
+                name="log-out-outline"
+                size={24}
+                color={colors.canela}
+                style={{ marginRight: 15 }}
+              />
+            </TouchableOpacity>
+          ),
+          tabBarActiveTintColor: colors.canela,
+          tabBarInactiveTintColor: colors.textLight,
+          tabBarStyle: globalStyles.tabBar,
+          tabBarLabelStyle: globalStyles.tabLabel,
+          headerStyle: {
+            backgroundColor: colors.beige,
+          },
+          headerTitleStyle: {
+            color: colors.textDark,
+          },
+        })}
+      >
+        <Tab.Screen name="Inicio" component={AdminHomeScreen} />
+        <Tab.Screen name="Tarjetas" component={ManageCardsScreen} />
+        <Tab.Screen name="Usuarios" component={ManageUsersScreen} />
+        <Tab.Screen name="Puerta" component={DoorStatusScreen} />
+      </Tab.Navigator>
+
+      <Portal>
+        <Dialog 
+          visible={visible} 
+          onDismiss={hideDialog} 
+          style={{ backgroundColor: '#fff0e6', borderRadius: 10 }} // fondo suave canela claro
+        >
+          <Dialog.Title style={{ color: colors.canela, fontWeight: 'bold' }}>
+            Cerrar sesión
+          </Dialog.Title>
+          <Dialog.Content>
+            <Paragraph style={{ color: colors.textDark, fontSize: 16 }}>
+              ¿Estás seguro de que quieres cerrar sesión?
+            </Paragraph>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={hideDialog} textColor={colors.canela}>
+              Cancelar
+            </Button>
+            <Button onPress={handleLogout} textColor="#a0522d" >
+              Cerrar sesión
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+    </PaperProvider>
   );
 };
 
