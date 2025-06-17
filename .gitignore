@@ -1,0 +1,14 @@
+# Ignorar dependencias
+cinnami/node_modules/
+backend/node_modules/
+
+# Ignorar configuraciones locales
+*.env
+.vscode/
+.DS_Store
+
+# Salidas de compilación
+cinnami/android/
+cinnami/ios/
+cinnami/build/
+backend/dist/
