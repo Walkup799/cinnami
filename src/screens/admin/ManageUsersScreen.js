@@ -1,6 +1,6 @@
 // src/screens/admin/ManageUsersScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Alert, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Alert, FlatList, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -15,10 +15,15 @@ function ManageUsersScreen() {
     fullName: '',
     date: new Date(),
     materia: '',
-    edificio: 'A',
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: 'Docente',
+    names: '',
+    surnames: '',
+    uid: ''
   });
-
-  const edificios = ['A', 'B', 'C', 'D', 'E'];
 
   const loadUsers = async () => {
     try {
@@ -62,12 +67,22 @@ function ManageUsersScreen() {
       Alert.alert('Error', 'Por favor ingrese un nombre válido');
       return;
     }
+    if (formData.password !== formData.confirmPassword) {
+      Alert.alert('Error', 'Las contraseñas no coinciden');
+      return;
+    }
 
     const userData = {
       fullName: formData.fullName.trim(),
       date: formData.date.toLocaleDateString(),
       materia: formData.materia.trim(),
-      edificio: formData.edificio,
+      username: formData.username.trim(),
+      email: formData.email.trim(),
+      password: formData.password,
+      role: formData.role,
+      names: formData.names.trim(),
+      surnames: formData.surnames.trim(),
+      uid: formData.uid.trim(),
       id: editingUserId || Date.now().toString()
     };
 
@@ -81,7 +96,19 @@ function ManageUsersScreen() {
     setUsers(updatedUsers);
     await saveUsers(updatedUsers);
     Alert.alert('Éxito', editingUserId ? 'Usuario actualizado' : 'Usuario agregado');
-    setFormData({ fullName: '', date: new Date(), materia: '', edificio: 'A' });
+    setFormData({
+      fullName: '',
+      date: new Date(),
+      materia: '',
+      username: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      role: 'Docente',
+      names: '',
+      surnames: '',
+      uid: ''
+    });
     setEditingUserId(null);
     setShowForm(false);
   };
@@ -111,7 +138,14 @@ function ManageUsersScreen() {
       fullName: user.fullName,
       date: new Date(user.date),
       materia: user.materia,
-      edificio: user.edificio,
+      username: user.username,
+      email: user.email,
+      password: user.password,
+      confirmPassword: user.password,
+      role: user.role,
+      names: user.names,
+      surnames: user.surnames,
+      uid: user.uid
     });
     setEditingUserId(user.id);
     setShowForm(true);
@@ -132,65 +166,104 @@ function ManageUsersScreen() {
         />
       </View>
 
-      {/* Botón para mostrar formulario */}
       {!showForm && (
         <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={() => setShowForm(true)}>
           <Text style={styles.buttonText}>Agregar nuevo usuario</Text>
         </TouchableOpacity>
       )}
 
-      {/* Formulario */}
       {showForm && (
-        <View style={styles.formContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Nombre completo"
-            value={formData.fullName}
-            onChangeText={(value) => handleInputChange('fullName', value)}
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Materia"
-            value={formData.materia}
-            onChangeText={(value) => handleInputChange('materia', value)}
-          />
-
-          <TouchableOpacity style={styles.dateInput} onPress={() => setShowDatePicker(true)}>
-            <Text>{formData.date.toLocaleDateString()}</Text>
-          </TouchableOpacity>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={formData.date}
-              mode="date"
-              display="default"
-              onChange={handleDateChange}
+        <ScrollView style={{ maxHeight: 400, marginBottom: 20 }}>
+          <View style={styles.formContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre completo"
+              value={formData.fullName}
+              onChangeText={(value) => handleInputChange('fullName', value)}
             />
-          )}
+            <TextInput
+              style={styles.input}
+              placeholder="Materia"
+              value={formData.materia}
+              onChangeText={(value) => handleInputChange('materia', value)}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre de usuario"
+              value={formData.username}
+              onChangeText={(value) => handleInputChange('username', value)}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Correo electrónico"
+              keyboardType="email-address"
+              value={formData.email}
+              onChangeText={(value) => handleInputChange('email', value)}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              secureTextEntry
+              value={formData.password}
+              onChangeText={(value) => handleInputChange('password', value)}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Confirmar password"
+              secureTextEntry
+              value={formData.confirmPassword}
+              onChangeText={(value) => handleInputChange('confirmPassword', value)}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre(s)"
+              value={formData.names}
+              onChangeText={(value) => handleInputChange('names', value)}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Apellido(s)"
+              value={formData.surnames}
+              onChangeText={(value) => handleInputChange('surnames', value)}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="UID de Tarjeta"
+              value={formData.uid}
+              onChangeText={(value) => handleInputChange('uid', value)}
+            />
 
-          <View style={styles.edificioContainer}>
-            <Text style={styles.edificioLabel}>Edificio:</Text>
-            {edificios.map((edif) => (
-              <TouchableOpacity
-                key={edif}
-                style={[styles.edificioButton, formData.edificio === edif && styles.selectedEdificio]}
-                onPress={() => handleInputChange('edificio', edif)}
-              >
-                <Text style={styles.edificioText}>{edif}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+            {/* Rol */}
+            <View style={styles.edificioContainer}>
+              <Text style={styles.edificioLabel}>Rol:</Text>
+              {['Docente', 'Admin'].map(role => (
+                <TouchableOpacity
+                  key={role}
+                  style={[styles.edificioButton, formData.role === role && styles.selectedEdificio]}
+                  onPress={() => handleInputChange('role', role)}
+                >
+                  <Text style={styles.edificioText}>{role}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSaveUser}>
-              <Text style={styles.buttonText}>{editingUserId ? 'Actualizar' : 'Guardar'}</Text>
+            <TouchableOpacity style={styles.dateInput} onPress={() => setShowDatePicker(true)}>
+              <Text>{formData.date.toLocaleDateString()}</Text>
             </TouchableOpacity>
+
+            {showDatePicker && (
+              <DateTimePicker value={formData.date} mode="date" display="default" onChange={handleDateChange} />
+            )}
+
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSaveUser}>
+                <Text style={styles.buttonText}>{editingUserId ? 'Actualizar' : 'Guardar'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        </ScrollView>
       )}
 
-      {/* Lista de usuarios */}
       <FlatList
         data={filteredUsers}
         keyExtractor={(item) => item.id}
@@ -201,7 +274,12 @@ function ManageUsersScreen() {
                 <Text style={styles.userName}>{item.fullName}</Text>
                 <Text style={styles.userDate}>Fecha: {item.date}</Text>
                 <Text style={styles.userDate}>Materia: {item.materia}</Text>
-                <Text style={styles.userDate}>Edificio: {item.edificio}</Text>
+                <Text style={styles.userDate}>Usuario: {item.username}</Text>
+                <Text style={styles.userDate}>Email: {item.email}</Text>
+                <Text style={styles.userDate}>Rol: {item.role}</Text>
+                <Text style={styles.userDate}>Nombre(s): {item.names}</Text>
+                <Text style={styles.userDate}>Apellido(s): {item.surnames}</Text>
+                <Text style={styles.userDate}>UID: {item.uid}</Text>
               </View>
               <View style={styles.actionsContainer}>
                 <TouchableOpacity style={[styles.actionButton, styles.editButton]} onPress={() => handleEditUser(item)}>
@@ -303,17 +381,18 @@ const styles = StyleSheet.create({
     color: colors.textDark,
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    marginBottom: 15,
   },
   button: {
-    padding: 15,
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 15,
   },
   saveButton: {
     backgroundColor: colors.canela,
+    width: '100%',
+    paddingVertical: 15,
+    alignItems: 'center',
   },
   buttonText: {
     color: colors.white,
