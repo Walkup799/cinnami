@@ -1,42 +1,50 @@
 import { Request, Response } from "express";
 import { generateAccessToken, generateRefreshToken } from '../utils/generateToken';
-import NodeCache from "node-cache";
-import dayjs from "dayjs";
 import { User } from "../models/User";
+import { RefreshToken } from "../utils/RefreshToken"; // Nuevo modelo para refresh tokens
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import dayjs from "dayjs";
 
-const cache = new NodeCache();
-
-// LOGIN
+// LOGIN - Versión mejorada
 export const login = async (req: Request, res: Response) => {
     const { identifier, password } = req.body;
 
     try {
+        // 1. Buscar usuario
         const user = await User.findOne({
-            $or: [
-                { username: identifier },
-                { email: identifier }
-            ]
-        });
+            $or: [{ username: identifier }, { email: identifier }]
+        }).select('+password'); // Asegurar que incluya el campo password
 
         if (!user) {
-            return res.status(401).json({ message: "Correo electrónico o usuario no registrado" }); //opcion 2
+            return res.status(401).json({ message: "Credenciales inválidas" });
         }
 
+        // 2. Verificar contraseña
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(401).json({ message: "Contraseña incorrecta" });
+            return res.status(401).json({ message: "Credenciales inválidas" }); // Mismo mensaje por seguridad
         }
 
+        // 3. Generar tokens
         const accessToken = generateAccessToken(user._id.toString());
         const refreshToken = generateRefreshToken(user._id.toString());
 
-        cache.set(user._id.toString(), accessToken, 60 * 15); // TTL: 15 minutos
+        // 4. Guardar refresh token en DB (nuevo)
+        await RefreshToken.create({
+            token: refreshToken,
+            userId: user._id,
+            expiresAt: dayjs().add(7, 'days').toDate()
+        });
+
+        // 5. Actualizar último login
+        user.lastLogin = new Date();
+        await user.save();
 
         return res.json({
             message: 'Login exitoso',
             accessToken,
-            refreshToken, // nuevo
+            refreshToken,
             user: {
                 id: user._id,
                 username: user.username,
@@ -44,88 +52,64 @@ export const login = async (req: Request, res: Response) => {
                 role: user.role
             }
         });
+
     } catch (error) {
         console.error("Error en login:", error);
         res.status(500).json({ message: "Error interno en el servidor" });
     }
 };
 
-// CONSULTAR TIEMPO RESTANTE DEL TOKEN
-export const getTime = (req: Request, res: Response) => {
-    const { userId } = req.params;
-    const ttl = cache.getTtl(userId);
-
-    if (!ttl) {
-        return res.status(404).json({ message: "Token no encontrado" });
-    }
-
-    const now = Date.now();
-    const timeToLifeSeconds = Math.floor((ttl - now) / 1000);
-    const expTime = dayjs(ttl).format('HH:mm:ss');
-
-    return res.json({
-        timeToLifeSeconds,
-        expTime
-    });
-};
-
-// ACTUALIZAR TIEMPO DE VIDA DEL TOKEN
-export const updateTime = (req: Request, res: Response) => {
-    const { userId } = req.body;
-    const ttl = cache.getTtl(userId);
-
-    if (!ttl) {
-        return res.status(404).json({ message: 'Token no encontrado o expirado' });
-    }
-
-    cache.ttl(userId, 60 * 15); // 15 minutos
-    res.json({ message: 'Tiempo actualizado correctamente' });
-};
-
-//REFRESH TOKEN
+// REFRESH TOKEN - Versión mejorada
 export const refreshToken = async (req: Request, res: Response) => {
-  const { token } = req.body;
+    const { token } = req.body;
 
-  if (!token) return res.status(401).json({ message: 'Token de actualización requerido' });
-
-  try {
-    const decoded = jwt.verify(token, process.env.REFRESH_SECRET || 'refresh_secret') as { userId: string };
-
-    const newAccessToken = generateAccessToken(decoded.userId);
-    const newRefreshToken = generateRefreshToken(decoded.userId);
-    return res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
-  } catch (err) {
-    return res.status(403).json({ message: 'Refresh token inválido o expirado' });
-  }
-};
-
-
-// OBTENER TODOS LOS USUARIOS
-export const getAllUsers = async (req: Request, res: Response) => {
-    try {
-        const userList = await User.find();
-        return res.json({ userList });
-    } catch (error) {
-        console.error("Error al obtener usuarios:", error);
-        res.status(500).json({ message: "Error al obtener usuarios" });
+    if (!token) {
+        return res.status(401).json({ message: 'Token de actualización requerido' });
     }
-};
 
-// BUSCAR USUARIO POR NOMBRE
-export const getUserName = async (req: Request, res: Response) => {
     try {
-        const { username } = req.params;
-        const user = await User.findOne({ username });
-
-        if (!user) {
-            return res.status(404).json({ message: 'Usuario no encontrado' });
+        // 1. Verificar token en DB
+        const storedToken = await RefreshToken.findOne({ token });
+        if (!storedToken || dayjs(storedToken.expiresAt).isBefore(dayjs())) {
+            return res.status(403).json({ message: 'Refresh token inválido o expirado' });
         }
 
-        res.json(user);
-    } catch (error) {
-        res.status(500).json({ message: 'Error al buscar el usuario', error });
+        // 2. Verificar firma JWT
+        const decoded = jwt.verify(token, process.env.REFRESH_SECRET || 'refresh_secret') as { userId: string };
+
+        // 3. Generar nuevos tokens
+        const newAccessToken = generateAccessToken(decoded.userId);
+        const newRefreshToken = generateRefreshToken(decoded.userId);
+
+        // 4. Actualizar refresh token en DB
+        await RefreshToken.findByIdAndUpdate(storedToken._id, {
+            token: newRefreshToken,
+            expiresAt: dayjs().add(7, 'days').toDate()
+        });
+
+        return res.json({ 
+            accessToken: newAccessToken, 
+            refreshToken: newRefreshToken 
+        });
+
+    } catch (err) {
+        return res.status(403).json({ message: 'Refresh token inválido' });
     }
 };
+
+// LOGOUT - Nuevo endpoint
+export const logout = async (req: Request, res: Response) => {
+    const { refreshToken } = req.body;
+
+    try {
+        // Eliminar refresh token de la DB
+        await RefreshToken.deleteOne({ token: refreshToken });
+        res.json({ message: 'Sesión cerrada correctamente' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al cerrar sesión' });
+    }
+};
+ 
 
 // CREAR UN NUEVO USUARIO
 export const createUser = async (req: Request, res: Response) => {
@@ -135,9 +119,9 @@ export const createUser = async (req: Request, res: Response) => {
             password,
             email,
             role,
-            nombre,
-            apellidos,
-            tarjeta,
+            firstName,
+            lastName,
+            cardId,
         } = req.body;
 
         // Verificar si ya existe el usuario
@@ -155,11 +139,12 @@ export const createUser = async (req: Request, res: Response) => {
             password: hashedPassword,
             email,
             role,
-            nombre,
-            apellidos,
-            tarjeta,
+            firstName,
+            lastName,
+            cardId, // tarjeta
+            doorOpenReminderMinutes: false, // valor por defecto
             createdAt: new Date(),      // asignar la fecha actual
-            ultimoAcceso: null,         // aún no ha iniciado sesión
+            lastLogin: null,         // aún no ha iniciado sesión
             status: true
         });
 
@@ -171,4 +156,13 @@ export const createUser = async (req: Request, res: Response) => {
         console.error("Error ocurrido en createUser: ", error);
         return res.status(500).json({ message: "Error al crear usuario", error });
     }
+};
+
+export const getAllUsers = async (req: Request, res: Response) => {
+  try {
+    const users = await User.find().select('-password'); // opcional ocultar contraseña
+    res.status(200).json({ users });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener los usuarios' });
+  }
 };

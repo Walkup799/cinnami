@@ -7,13 +7,14 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: "admin" | "docente";
-  nombre: string;
-  apellidos: string;
-  tarjeta: string;
+  firstName: string;
+  lastName: string;
+  cardId: string;
   status: boolean;
+  doorOpenReminderMinutes: boolean;
   createdAt?: Date;
   updatedAt?: Date;
-  ultimoAcceso?: Date;
+  lastLogin?: Date;
 }
 
 // Esquema de Mongoose
@@ -38,15 +39,15 @@ const userSchema = new Schema<IUser>(
         enum: ["admin", "docente"], 
         required: true 
     },
-    nombre: { 
+    firstName: { 
         type: String, 
         required: true 
     },
-    apellidos: { 
+    lastName: { 
         type: String, 
         required: true 
     },
-    tarjeta: { 
+    cardId: { 
         type: String, 
         required: true, 
         unique: true 
@@ -55,7 +56,19 @@ const userSchema = new Schema<IUser>(
         type: Boolean, 
         default: true 
     },
-    ultimoAcceso: { 
+    doorOpenReminderMinutes: { 
+        type: Boolean, 
+        default: false 
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now,
+    },  
+    lastLogin: { 
         type: Date 
     },
   },

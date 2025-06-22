@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import {
   Portal,
@@ -16,6 +15,7 @@ import UserHomeScreen from '../screens/user/UserHomeScreen';
 import CardStatusScreen from '../screens/user/CardStatusScreen';
 import AccessHistoryScreen from '../screens/user/AccessHistoryScreen';
 import { colors, globalStyles } from '../styles/globalStyles';
+import { logoutUser } from '../utils/authHelpers'; // 👈 Importa el helper
 
 const Tab = createBottomTabNavigator();
 
@@ -28,10 +28,7 @@ const UserTabNavigator = ({ setUserRole }) => {
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem('userToken');
-      await AsyncStorage.removeItem('refreshToken');
-      await AsyncStorage.removeItem('userRole');
-      setUserRole(null);
+      await logoutUser(setUserRole); // 👈 Llama al helper que hace logout completo
       hideDialog();
     } catch (error) {
       console.log('Error al cerrar sesión:', error);

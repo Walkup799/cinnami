@@ -1,18 +1,10 @@
 import React, { useState } from 'react';
 import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  Alert, 
-  StyleSheet, 
-  KeyboardAvoidingView, 
-  Platform, 
-  ActivityIndicator 
+  View, Text, TextInput, TouchableOpacity, Alert, 
+  StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator 
 } from 'react-native';
 import { globalStyles, colors } from '../styles/globalStyles';
 import { Ionicons } from '@expo/vector-icons';
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LoginScreen = ({ navigation, setUserRole }) => {
@@ -47,53 +39,39 @@ const LoginScreen = ({ navigation, setUserRole }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://192.168.1.7:3000/api/auth/login', { //esta es la ip de mi computadora, se debe cambiar si la quieres probar en otro dispositivo
+      const response = await fetch('http://192.168.1.7:3000/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password })
       });
 
       const data = await response.json();
+      console.log('Respuesta del login:', data);
+
       setIsLoading(false);
 
       if (response.ok) {
+        // Guardar tokens y datos
+        await AsyncStorage.setItem('userToken', data.accessToken);
+        await AsyncStorage.setItem('refreshToken', data.refreshToken);
+        await AsyncStorage.setItem('userRole', data.user.role);
+        await AsyncStorage.setItem('username', data.user.username);
 
-        
-        const userRole = data.user?.role || 'user'; // 'docente' si no viene nada
-
-        await AsyncStorage.setItem('userToken', data.accessToken); // token
-        await AsyncStorage.setItem('refreshToken', data.refreshToken); // refresh token
-        await AsyncStorage.setItem('userRole', data.user.role);    // rol
-        console.log('Rol guardado:', data.user.role);
-        
-
-        setUserRole(userRole); // Esto es lo único necesario, App.js se encarga del resto
+        setUserRole(data.user.role);
       } else {
-        if (data.message?.toLowerCase().includes('contraseña')) {
-          setPasswordError('Contraseña incorrecta');
-        } else if (data.message?.toLowerCase().includes('usuario')) {
-          setIdentifierError('Correo electrónico o usuario no registrado');
-        } else {
-
-          Alert.alert(
-          'Error de autenticación',
-          data.message || 'Datos inválidos',
-          [{ text: 'OK' }]
-        );
-
-        }
- 
-      } //else principal
+         if (data.message?.toLowerCase().includes('contraseña')) {
+            setPasswordError('Contraseña incorrecta');
+          } else if (data.message?.toLowerCase().includes('usuario')) {
+            setIdentifierError('Correo electrónico o usuario no registrado');
+          } else {
+            setIdentifierError(data.message || 'Error en autenticación');
+            setPasswordError(data.message || 'Error en autenticación');
+          }
+      }
     } catch (error) {
       setIsLoading(false);
+      Alert.alert('Error de conexión', 'No se pudo conectar con el servidor', [{ text: 'OK' }]);
       console.error('ERROR LOGIN:', error);
-      Alert.alert(
-        'Error de conexión',
-        'No se pudo conectar con el servidor',
-        [{ text: 'OK' }]
-      );
     }
   };
 
@@ -140,6 +118,7 @@ const LoginScreen = ({ navigation, setUserRole }) => {
                 setPasswordError('');
               }}
               secureTextEntry={!showPassword}
+              autoCapitalize="none"
             />
             <TouchableOpacity 
               onPress={() => setShowPassword(!showPassword)}
@@ -174,8 +153,6 @@ const LoginScreen = ({ navigation, setUserRole }) => {
           <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
         </TouchableOpacity>
       </View>
-
-      
     </KeyboardAvoidingView>
   );
 };
@@ -243,18 +220,6 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     color: colors.canela,
     textDecorationLine: 'underline',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 30,
-  },
-  footerText: {
-    color: colors.textLight,
-  },
-  footerLink: {
-    color: colors.canela,
-    fontWeight: 'bold',
   },
 });
 

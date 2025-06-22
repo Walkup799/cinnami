@@ -2,13 +2,14 @@
 
 #FRONTEND - React Native
 # dependencies
-node_modules/
+cinnami/node_modules/
 
 # Expo
 .expo/
 dist/
 web-build/
 expo-env.d.ts
+
 
 # Native
 .kotlin/

@@ -1,9 +1,29 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { globalStyles, colors } from '../../styles/globalStyles';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
 const UserHomeScreen = ({ navigation }) => {
+
+    const [username, setUsername] = useState('Usuario');
+
+  useEffect(() => {
+    const fetchUsername = async () => {
+      try {
+        const storedUsername = await AsyncStorage.getItem('username');
+        if (storedUsername) {
+          setUsername(storedUsername);
+        }
+      } catch (error) {
+        console.log('Error al cargar nombre:', error);
+      }
+    };
+
+    fetchUsername();
+  }, []);
+
+
   const lastAccess = {
     door: 'Puerta Principal',
     time: '10:30 AM',
@@ -15,7 +35,7 @@ const UserHomeScreen = ({ navigation }) => {
     <View style={globalStyles.container}>
       <View style={{ alignItems: 'center', marginBottom: 30 }}>
         <Ionicons name="person-circle-outline" size={100} color={colors.canela} />
-        <Text style={globalStyles.title}>Bienvenido, Usuario</Text>
+        <Text style={globalStyles.title}>Bienvenido, {username}</Text>
       </View>
       
       <View style={globalStyles.card}>
