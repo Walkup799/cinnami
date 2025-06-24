@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Keyboard, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Modal, Portal, Provider } from 'react-native-paper';
@@ -16,6 +16,120 @@ const ManageUsersScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+
+  //news
+
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userModalVisible, setUserModalVisible] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+
+
+   // Función para abrir el modal con los datos del usuario
+  const openUserModal = (user) => {
+    console.log("Datos del usuario recibidos:", user); 
+    setSelectedUser(user);
+    setUserModalVisible(true);
+    setEditMode(false);
+  };
+
+
+  // Función para confirmar deshabilitación
+  const confirmDisableUser = () => {
+    Alert.alert(
+      'Confirmar',
+      `¿Estás seguro que deseas deshabilitar a ${selectedUser.firstName} ${selectedUser.lastName}?`,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Deshabilitar',
+          onPress: () => disableUser(),
+          style: 'destructive',
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+
+  // Función para deshabilitar usuario
+  const disableUser = async () => {
+    setIsLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await fetch(`http://192.168.1.197:3000/api/auth/users/${selectedUser._id}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ active: false }), // Asumiendo que tu backend usa este campo
+      });
+
+      if (response.ok) {
+        loadUsers();
+        setUserModalVisible(false);
+        Alert.alert('Éxito', 'Usuario deshabilitado correctamente');
+      } else {
+        const data = await response.json();
+        showError(data.message || 'Error al deshabilitar usuario');
+      }
+    } catch (error) {
+      showError('Error de conexión');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+   // Función para guardar cambios al editar
+  const handleSaveChanges = async () => {
+    if (!validateForm()) return;
+
+    setIsLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await fetch(`http://192.168.1.197:3000/api/auth/users/${selectedUser._id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        loadUsers();
+        setEditMode(false);
+        Alert.alert('Éxito', 'Cambios guardados correctamente');
+      } else {
+        const data = await response.json();
+        showError(data.message || 'Error al actualizar usuario');
+      }
+    } catch (error) {
+      showError('Error de conexión');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Función para entrar en modo edición
+  const enterEditMode = () => {
+    setFormData({
+      username: selectedUser.username,
+      email: selectedUser.email,
+      password: '', // Dejar en blanco para no sobreescribir sin querer
+      confirmPassword: '',
+      role: selectedUser.role,
+      firstName: selectedUser.firstName,
+      lastName: selectedUser.lastName,
+      cardId: selectedUser.cardId
+    });
+    setEditMode(true);
+  };
+
   
   // Estados del formulario
   const [formData, setFormData] = useState({
@@ -67,21 +181,28 @@ const ManageUsersScreen = () => {
 
     if (!token) {
       showError('No se encontró el token. Por favor, inicia sesión nuevamente.');
+      console.log('Token no encontrado');
       setIsLoading(false);
       return;
     }
 
-    const response = await fetch('http://192.168.1.7:3000/api/auth/all-users', {
+    const response = await fetch('http://192.168.1.197:3000/api/auth/all-users', {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     });
 
     const data = await response.json();
+    console.log('Datos de usuarios recibidos:', data);
 
     if (response.ok) {
-      setUsers(data.users);
-      setFilteredUsers(data.users);
+      const usersWithActive = data.users.map(user => ({
+        ...user,
+        active: user.status !== false // Convierte undefined/null a true
+      }));
+      
+      setUsers(usersWithActive);
+      setFilteredUsers(usersWithActive);
     } else {
       showError(data.message || 'Error al cargar usuarios');
       console.log('Error al cargar usuarios:', data);
@@ -156,7 +277,7 @@ const ManageUsersScreen = () => {
     
     try {
       const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('http://192.168.1.7:3000/api/auth/users', {
+      const response = await fetch('http://192.168.1.197:3000/api/auth/users', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -377,7 +498,7 @@ const ManageUsersScreen = () => {
               <TouchableOpacity 
                 key={user._id} 
                 style={styles.userCard}
-                onPress={() => navigation.navigate('UserDetail', { userId: user._id })}
+                onPress={() => openUserModal(user)}
               >
                 <View style={styles.userAvatar}>
                   <Icon name="account" size={30} color={colors.primary} />
@@ -426,6 +547,187 @@ const ManageUsersScreen = () => {
             </View>
           </Modal>
         </Portal>
+
+
+        {/* Nuevo modal para detalles de usuario */}
+        <Portal>
+          <Modal
+            visible={userModalVisible}
+            onDismiss={() => setUserModalVisible(false)}
+            contentContainerStyle={styles.userModalContainer}
+          >
+            <View style={styles.userModalContent}>
+               <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setUserModalVisible(false)}
+              >
+                <Icon name="close" size={24} color={colors.textLight} />
+              </TouchableOpacity>
+
+
+              {editMode ? (
+                <ScrollView contentContainerStyle={styles.editScrollContainer} >
+                  <Text style={styles.userModalTitle}>Editar Usuario</Text>
+                  
+                  {/* Formulario de edición similar al de creación */}
+                  {[
+                    { name: 'username', label: 'Nombre de usuario', icon: 'account' },
+                    { name: 'email', label: 'Correo electrónico', icon: 'email', keyboardType: 'email-address' },
+                    { name: 'firstName', label: 'Nombres', icon: 'card-account-details' },
+                    { name: 'lastName', label: 'Apellidos', icon: 'card-account-details' },
+                    { name: 'cardId', label: 'ID de Tarjeta', icon: 'card-bulleted' },
+                  ].map((field) => (
+                    <View key={field.name} style={styles.inputContainer}>
+                      <View style={styles.inputLabel}>
+                        <Icon name={field.icon} size={18} color={colors.textLight} />
+                        <Text style={styles.labelText}>{field.label}</Text>
+                      </View>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          errors[field.name] && styles.inputError
+                        ]}
+                        value={formData[field.name]}
+                        onChangeText={(text) => handleInputChange(field.name, text)}
+                        onBlur={() => validateField(field.name, formData[field.name])}
+                        keyboardType={field.keyboardType || 'default'}
+                      />
+                      {errors[field.name] && (
+                        <Text style={styles.errorText}>{errors[field.name]}</Text>
+                      )}
+                    </View>
+                  ))}
+
+                  {/* Rol */}
+                  <View style={styles.inputContainer}>
+                    <View style={styles.inputLabel}>
+                      <Icon name="account-supervisor" size={18} color={colors.textLight} />
+                      <Text style={styles.labelText}>Rol del Usuario</Text>
+                    </View>
+                    <View style={styles.roleContainer}>
+                      {['docente', 'admin'].map((role) => (
+                        <TouchableOpacity
+                          key={role}
+                          style={[
+                            styles.roleButton,
+                            formData.role === role && styles.roleButtonActive
+                          ]}
+                          onPress={() => handleInputChange('role', role)}
+                        >
+                          <Text style={[
+                            styles.roleText,
+                            formData.role === role && styles.roleTextActive
+                          ]}>
+                            {role === 'docente' ? 'Docente' : 'Administrador'}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Botones de edición */}
+                   <View style={styles.editButtonsContainer}>
+                    <TouchableOpacity
+                      style={[styles.halfWidthButton, styles.cancelEditButton]}
+                      onPress={() => setEditMode(false)}
+                      disabled={isLoading}
+                    >
+                      <Text style={styles.halfWidthButtonText}>Cancelar</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[styles.halfWidthButton, styles.saveEditButton]}
+                      onPress={handleSaveChanges}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <ActivityIndicator color="white" />
+                      ) : (
+                        <Text style={styles.halfWidthButtonText}>Guardar</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              ) : (
+                <>
+                  <View style={styles.userModalHeader}>
+                    <View style={styles.userModalAvatar}>
+                      <Icon name="account" size={40} color={colors.primary} />
+                    </View>
+                    <Text style={styles.userModalName}>
+                      {selectedUser?.firstName} {selectedUser?.lastName}
+                    </Text>
+                    <Text style={styles.userModalEmail}>{selectedUser?.email}</Text>
+                    <View style={[
+                      styles.userModalRole,
+                      selectedUser?.role === 'admin' && styles.userRoleAdmin
+                    ]}>
+                      <Text style={styles.userModalRoleText}>
+                        {selectedUser?.role === 'docente' ? 'Docente' : 'Administrador'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.userDetailsContainer}>
+                    <View style={styles.userDetailRow}>
+                      <Icon name="account" size={20} color={colors.textLight} />
+                      <Text style={styles.userDetailLabel}>Usuario:</Text>
+                      <Text style={styles.userDetailValue}>{selectedUser?.username}</Text>
+                    </View>
+                    <View style={styles.userDetailRow}>
+                      <Icon name="card-account-details" size={20} color={colors.textLight} />
+                      <Text style={styles.userDetailLabel}>ID Tarjeta:</Text>
+                      <Text style={styles.userDetailValue}>{selectedUser?.cardId}</Text>
+                    </View>
+                    <View style={styles.userDetailRow}>
+                      <Icon name="calendar" size={20} color={colors.textLight} />
+                      <Text style={styles.userDetailLabel}>Registrado:</Text>
+                      <Text style={styles.userDetailValue}>
+                        {new Date(selectedUser?.createdAt).toLocaleDateString()}
+                      </Text>
+                    </View>
+                    <View style={styles.userDetailRow}>
+                      <Icon name="account-check" size={20} color={colors.textLight} />
+                      <Text style={styles.userDetailLabel}>Estado:</Text>
+                      <Text style={[
+                        styles.userDetailValue,
+                        selectedUser?.status !== false ? styles.activeUser : styles.inactiveUser
+                      ]}>
+                        {selectedUser?.active  !== false ? 'Activo' : 'Inactivo'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.modalButtonsContainer}>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.editButton]}
+                      onPress={enterEditMode}
+                    >
+                      <Icon name="pencil" size={18} color="white" />
+                      <Text style={styles.modalButtonText}>Editar</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.disableButton]}
+                      onPress={confirmDisableUser}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <ActivityIndicator color="white" />
+                      ) : (
+                        <>
+                          <Icon name="account-remove" size={18} color="white" />
+                          <Text style={styles.modalButtonText}>Deshabilitar</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          </Modal>
+        </Portal>
+
       </View>
     </Provider>
   );
@@ -692,6 +994,167 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+
+  userModalContainer: {
+    padding: 20,
+  },
+  userModalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  userModalHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  userModalAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  userModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  userModalName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  userModalEmail: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginBottom: 8,
+  },
+  userModalRole: {
+    backgroundColor: '#e9ecef',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  userModalRoleText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  userDetailsContainer: {
+    marginBottom: 20,
+  },
+  userDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  userDetailLabel: {
+    marginLeft: 8,
+    color: colors.textLight,
+    width: 100,
+  },
+  userDetailValue: {
+    flex: 1,
+    color: colors.text,
+    marginLeft: 8,
+  },
+  activeUser: {
+    color: colors.success,
+    fontWeight: 'bold',
+  },
+  inactiveUser: {
+    color: colors.error,
+    fontWeight: 'bold',
+  },
+  modalButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  editButton: {
+    backgroundColor: colors.primary,
+    flex: 1,
+    marginRight: 5,
+  },
+  disableButton: {
+    backgroundColor: colors.error,
+    flex: 1,
+    marginLeft: 5,
+  },
+  cancelButton: {
+    backgroundColor: colors.textLight,
+    flex: 1,
+    marginRight: 5,
+  },
+  editScrollContainer: {
+    paddingBottom: 20,
+  },
+  // Contenedor de botones de edición (mitad y mitad)
+  editButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+
+  // Estilo para botones mitad y mitad
+  halfWidthButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 5,
+  },
+
+  halfWidthButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+
+  cancelEditButton: {
+    backgroundColor: colors.textLight,
+  },
+
+  saveEditButton: {
+    backgroundColor: colors.primary,
+  },
+
+  // Contenedor de botones de acción (editar/deshabilitar)
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 30, // Más espacio arriba
+    marginBottom: 20, // Más espacio abajo
+    paddingHorizontal: 10,
+  },
+
+  // Estilo para botones de acción
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 5,
+  },
+
+  actionButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+
+  
 });
 
 export default ManageUsersScreen;

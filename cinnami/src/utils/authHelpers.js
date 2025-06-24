@@ -45,7 +45,7 @@ export const logoutUser = async (setUserRole) => {
     const accessToken = await AsyncStorage.getItem('userToken');
 
     if (refreshToken && accessToken) {
-      await fetch('http://192.168.1.7:3000/api/auth/logout', {
+      await fetch('192.168.1.197:3000/api/auth/logout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
