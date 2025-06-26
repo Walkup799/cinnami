@@ -108,7 +108,7 @@ const AdminHomeScreen = () => {
             <Text
               style={[
                 styles.summaryValue,
-                { color: doorStatus === 'Abierta' ? colors.danger : colors.success },
+                { color: doorStatus === 'Abierta' ? colors.success : colors.danger },
               ]}
             >
               {doorStatus}
