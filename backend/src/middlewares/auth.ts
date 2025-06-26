@@ -1,11 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from 'jsonwebtoken';
 
-// Extend Express Request interface to include userId
+// Extend Express Request interface to include userId and user
 declare global {
     namespace Express {
+        interface User {
+            _id: string;
+            role: string;
+            [key: string]: any;
+        }
         interface Request {
             userId?: string;
+            user?: User;
         }
     }
 }
@@ -21,4 +27,19 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
     } catch (error) {
         res.status(403).json({ message: 'Token inválido o expirado' });
     }
+};
+
+
+export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Acceso no autorizado" });
+    }
+    next();
+};
+
+export const isSelfOrAdmin = (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user || (req.user._id.toString() !== req.params.id && req.user.role !== 'admin')) {
+        return res.status(403).json({ message: "Acceso no autorizado" });
+    }
+    next();
 };

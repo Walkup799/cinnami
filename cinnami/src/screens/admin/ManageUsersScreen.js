@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Modal, Portal, Provider } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
+import { API_BASE_URL } from '../../utils/constants';
+
 
 
 
@@ -16,6 +18,10 @@ const ManageUsersScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editSuccessModal, setEditSuccessModal] = useState(false);
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [disableSuccessModal, setDisableSuccessModal] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   //news
 
@@ -33,87 +39,132 @@ const ManageUsersScreen = () => {
   };
 
 
-  // Función para confirmar deshabilitación
-  const confirmDisableUser = () => {
-    Alert.alert(
-      'Confirmar',
-      `¿Estás seguro que deseas deshabilitar a ${selectedUser.firstName} ${selectedUser.lastName}?`,
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Deshabilitar',
-          onPress: () => disableUser(),
-          style: 'destructive',
-        },
-      ],
-      { cancelable: true }
-    );
-  };
+ 
 
+// Función para abrir modal de confirmación
+const confirmDisableUser = () => {
+  setConfirmModalVisible(true);
+};
 
-  // Función para deshabilitar usuario
-  const disableUser = async () => {
-    setIsLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`http://192.168.1.197:3000/api/auth/users/${selectedUser._id}`, {
-        method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ active: false }), // Asumiendo que tu backend usa este campo
-      });
+// Función para deshabilitar usuario
+const disableUser = async () => {
+  setIsLoading(true);
+  setConfirmModalVisible(false); // Cerrar modal de confirmación
+  
+  try {
+    const token = await AsyncStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/${selectedUser._id}/disable`, {
+      method: 'PATCH',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ status: false }),
+    });
 
-      if (response.ok) {
-        loadUsers();
-        setUserModalVisible(false);
-        Alert.alert('Éxito', 'Usuario deshabilitado correctamente');
-      } else {
-        const data = await response.json();
-        showError(data.message || 'Error al deshabilitar usuario');
-      }
-    } catch (error) {
-      showError('Error de conexión');
-    } finally {
-      setIsLoading(false);
+    if (response.ok) {
+      // Actualizar el estado local
+      const updatedUsers = users.map(user => 
+        user._id === selectedUser._id ? { ...user, status: false } : user
+      );
+      
+      setUsers(updatedUsers);
+      setFilteredUsers(updatedUsers);
+      setDisableSuccessModal(true); // Mostrar modal de éxito
+      setUserModalVisible(false);
+    } else {
+      const data = await response.json();
+      showError(data.message || 'Error al deshabilitar usuario');
     }
-  };
+  } catch (error) {
+    showError('Error de conexión');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
 
    // Función para guardar cambios al editar
   const handleSaveChanges = async () => {
-    if (!validateForm()) return;
-
-    setIsLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`http://192.168.1.197:3000/api/auth/users/${selectedUser._id}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        loadUsers();
-        setEditMode(false);
-        Alert.alert('Éxito', 'Cambios guardados correctamente');
-      } else {
-        const data = await response.json();
-        showError(data.message || 'Error al actualizar usuario');
-      }
-    } catch (error) {
-      showError('Error de conexión');
-    } finally {
-      setIsLoading(false);
+  // Validar el formulario primero (sin validar contraseña ya que admin no la cambia)
+  let isValid = true;
+  const fieldsToValidate = ['username', 'email', 'firstName', 'lastName', 'cardId'];
+  
+  fieldsToValidate.forEach(field => {
+    if (!validateField(field, formData[field])) {
+      isValid = false;
     }
-  };
+  });
+  
+  if (!isValid) {
+    showError('Por favor corrige los errores en el formulario');
+    return;
+  }
+
+  setIsLoading(true);
+  try {
+    const token = await AsyncStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/${selectedUser._id}/update`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        username: formData.username,
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        cardId: formData.cardId,
+        role: formData.role
+        // No incluimos password ni confirmPassword
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      // Actualizar el estado local con los cambios
+      const updatedUsers = users.map(user => 
+        user._id === selectedUser._id ? { 
+          ...user, 
+          username: formData.username,
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          cardId: formData.cardId,
+          role: formData.role
+        } : user
+      );
+      
+      setUsers(updatedUsers);
+      setFilteredUsers(updatedUsers);
+      setSelectedUser(prev => ({
+        ...prev,
+        username: formData.username,
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        cardId: formData.cardId,
+        role: formData.role
+      }));
+      
+      setEditMode(false);
+      setEditSuccessModal(true);
+      Alert.alert('Éxito', 'Cambios guardados correctamente');
+      console.log('Usuario actualizado:');
+    } else {
+      showError(data.message || 'Error al actualizar usuario');
+      console.error('Error del backend:', data);
+    }
+  } catch (error) {
+    console.error('Error de conexión:', error);
+    showError('Error de conexión al guardar cambios');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // Función para entrar en modo edición
   const enterEditMode = () => {
@@ -157,6 +208,7 @@ const ManageUsersScreen = () => {
   useEffect(() => {
     loadUsers();
   }, []);
+  
 
   // Filtrar usuarios cuando cambia el texto de búsqueda
   useEffect(() => {
@@ -173,48 +225,74 @@ const ManageUsersScreen = () => {
     }
   }, [searchText, users]);
 
+  // Obtener ID del usuario logeado
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const userData = await AsyncStorage.getItem('userData');
+      if (userData) {
+        const { _id } = JSON.parse(userData);
+        setCurrentUserId(_id);
+      }
+    };
+    getCurrentUser();
+  }, []);
+
   const loadUsers = async () => {
   setIsLoading(true);
   try {
-    const token = await AsyncStorage.getItem('userToken');
-    console.log('Token cargado:', token);
-
-    if (!token) {
-      showError('No se encontró el token. Por favor, inicia sesión nuevamente.');
-      console.log('Token no encontrado');
-      setIsLoading(false);
+    // 1. Obtener usuario actual
+    const userData = await AsyncStorage.getItem('userData');
+    if (!userData) {
+      console.log('No hay datos de usuario en AsyncStorage');
+      return;
+    }
+    
+    const currentUser = JSON.parse(userData);
+    console.log('Usuario actual desde storage:', currentUser);
+    
+    if (!currentUser._id) {
+      console.log('El usuario actual no tiene _id:', currentUser);
       return;
     }
 
-    const response = await fetch('http://192.168.1.197:3000/api/auth/all-users', {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+    // 2. Obtener token
+    const token = await AsyncStorage.getItem('userToken');
+    if (!token) {
+      console.log('No se encontró token');
+      return;
+    }
+
+    // 3. Fetch usuarios
+    const response = await fetch(`${API_BASE_URL}/all-users`, {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
 
-    const data = await response.json();
-    console.log('Datos de usuarios recibidos:', data);
-
-    if (response.ok) {
-      const usersWithActive = data.users.map(user => ({
-        ...user,
-        active: user.status !== false // Convierte undefined/null a true
-      }));
-      
-      setUsers(usersWithActive);
-      setFilteredUsers(usersWithActive);
-    } else {
-      showError(data.message || 'Error al cargar usuarios');
-      console.log('Error al cargar usuarios:', data);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error al cargar usuarios');
     }
+
+    const data = await response.json();
+    console.log('Usuarios recibidos:', data.users);
+
+    // 4. Filtrar usuarios
+    const filtered = data.users.filter(user => {
+      // Comparar con el _id guardado en AsyncStorage
+      return user._id !== currentUser._id && user.status !== false;
+    });
+
+    console.log('Usuarios filtrados:', filtered);
+    
+    setUsers(filtered);
+    setFilteredUsers(filtered);
+
   } catch (error) {
-    console.error('Error de conexión al cargar usuarios:', error);
-    showError('Error de conexión');
+    console.error('Error en loadUsers:', error);
+    showError(error.message || 'Error al cargar usuarios');
   } finally {
     setIsLoading(false);
   }
 };
-
   const validateField = (name, value) => {
     let error = '';
     
@@ -256,6 +334,10 @@ const ManageUsersScreen = () => {
     }
   };
 
+
+  
+  
+
   const validateForm = () => {
     let isValid = true;
     const fieldsToValidate = ['username', 'email', 'password', 'confirmPassword', 'firstName', 'lastName', 'cardId'];
@@ -277,7 +359,7 @@ const ManageUsersScreen = () => {
     
     try {
       const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('http://192.168.1.197:3000/api/auth/users', {
+      const response = await fetch('${API_BASE_URL}/users', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -700,15 +782,15 @@ const ManageUsersScreen = () => {
 
                   <View style={styles.modalButtonsContainer}>
                     <TouchableOpacity
-                      style={[styles.modalButton, styles.editButton]}
+                      style={[styles.actionButton, styles.editButton]}
                       onPress={enterEditMode}
                     >
                       <Icon name="pencil" size={18} color="white" />
-                      <Text style={styles.modalButtonText}>Editar</Text>
+                      <Text style={styles.actionButtonText}>Editar</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity
-                      style={[styles.modalButton, styles.disableButton]}
+                      style={[styles.actionButton, styles.disableButtonGeneral]}
                       onPress={confirmDisableUser}
                       disabled={isLoading}
                     >
@@ -717,7 +799,7 @@ const ManageUsersScreen = () => {
                       ) : (
                         <>
                           <Icon name="account-remove" size={18} color="white" />
-                          <Text style={styles.modalButtonText}>Deshabilitar</Text>
+                          <Text style={styles.actionButtonText}>Deshabilitar</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -726,6 +808,97 @@ const ManageUsersScreen = () => {
               )}
             </View>
           </Modal>
+
+           <Modal
+            visible={editSuccessModal}
+            onDismiss={() => setEditSuccessModal(false)}
+            contentContainerStyle={styles.editSuccessModal}
+          >
+            <View style={styles.editSuccessContent}>
+              <View style={styles.editSuccessIcon}>
+                <Icon name="check-circle" size={50} color={colors.success} />
+              </View>
+              <Text style={styles.editSuccessTitle}>¡Cambios guardados!</Text>
+              <Text style={styles.editSuccessText}>
+                La información del usuario se ha actualizado correctamente.
+              </Text>
+              <TouchableOpacity
+                style={styles.editSuccessButton}
+                onPress={() => setEditSuccessModal(false)}
+              >
+                <Text style={styles.editSuccessButtonText}>Aceptar</Text>
+              </TouchableOpacity>
+            </View>
+          </Modal>
+
+          {/* Modal de Confirmación para Deshabilitar */}
+
+
+           <Modal
+          visible={confirmModalVisible}
+          onDismiss={() => setConfirmModalVisible(false)}
+          contentContainerStyle={styles.confirmModalContainer}
+        >
+          <View style={styles.confirmModalContent}>
+            <View style={styles.confirmModalHeader}>
+              <Icon name="alert-circle" size={40} color={colors.warning} />
+              <Text style={styles.confirmModalTitle}>Confirmar Deshabilitación</Text>
+            </View>
+            
+            <Text style={styles.confirmModalTitle}>
+              ¿Estás seguro que deseas deshabilitar a {selectedUser?.firstName} {selectedUser?.lastName}?
+            </Text>
+            
+            <View style={styles.confirmModalButtonText}>
+              <TouchableOpacity
+                style={[styles.confirmModalButtonText, styles.modalCancelButton]}
+                onPress={() => setConfirmModalVisible(false)}
+                disabled={isLoading}
+              >
+                <Text style={styles.confirmModalButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.confirmModalButtonText, styles.modalDisableButton]}
+                onPress={disableUser}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.confirmModalButtonText}>Deshabilitar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+         </Modal>
+
+
+         {/* Modal de Éxito al Deshabilitar */}
+
+          <Modal
+            visible={disableSuccessModal}
+            onDismiss={() => setDisableSuccessModal(false)}
+            contentContainerStyle={styles.successModalContainer}
+          >
+            <View style={styles.successModalContent}>
+              <View style={styles.successModalIcon}>
+                <Icon name="check-circle" size={50} color={colors.success} />
+              </View>
+              <Text style={styles.successModalTitle}>¡Usuario Deshabilitado!</Text>
+              <Text style={styles.successModalText}>
+                {selectedUser?.firstName} {selectedUser?.lastName} ha sido deshabilitado correctamente.
+              </Text>
+              <TouchableOpacity
+                style={styles.successModalButton}
+                onPress={() => setDisableSuccessModal(false)}
+              >
+                <Text style={styles.successModalButtonText}>Aceptar</Text>
+              </TouchableOpacity>
+            </View>
+          </Modal>
+
+        
         </Portal>
 
       </View>
@@ -1153,7 +1326,172 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 8,
   },
+  editSuccessModal: {
+  padding: 20,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+editSuccessContent: {
+  backgroundColor: 'white',
+  borderRadius: 12,
+  padding: 25,
+  width: '100%',
+  alignItems: 'center',
+},
+editSuccessIcon: {
+  marginBottom: 15,
+},
+editSuccessTitle: {
+  fontSize: 20,
+  fontWeight: 'bold',
+  color: colors.text,
+  marginBottom: 10,
+  textAlign: 'center',
+},
+editSuccessText: {
+  fontSize: 16,
+  color: colors.textLight,
+  textAlign: 'center',
+  marginBottom: 20,
+  lineHeight: 22,
+},
+editSuccessButton: {
+  backgroundColor: colors.primary,
+  borderRadius: 8,
+  paddingVertical: 12,
+  paddingHorizontal: 24,
+  width: '100%',
+  alignItems: 'center',
+},
+editSuccessButtonText: {
+  color: 'white',
+  fontWeight: 'bold',
+  fontSize: 16,
+},
+confirmModalContainer: {
+  padding: 20,
+},
+confirmModalContent: {
+  backgroundColor: 'white',
+  borderRadius: 12,
+  padding: 20,
+},
+confirmModalHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 15,
+},
+confirmModalTitle: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: colors.text,
+  marginLeft: 10,
+},
 
+cancelButton: {
+  backgroundColor: colors.textLight,
+  marginRight: 5,
+},
+disableButton: {
+  backgroundColor: colors.error,
+  marginLeft: 5,
+},
+confirmModalButtonText: {
+  color: 'white',
+  fontWeight: 'bold',
+},
+
+successModalContainer: {
+  padding: 20,
+},
+successModalContent: {
+  backgroundColor: 'white',
+  borderRadius: 12,
+  padding: 25,
+  alignItems: 'center',
+},
+successModalIcon: {
+  marginBottom: 15,
+},
+successModalTitle: {
+  fontSize: 20,
+  fontWeight: 'bold',
+  color: colors.text,
+  marginBottom: 10,
+},
+successModalText: {
+  fontSize: 16,
+  color: colors.textLight,
+  textAlign: 'center',
+  marginBottom: 20,
+  lineHeight: 22,
+},
+successModalButton: {
+  backgroundColor: colors.primary,
+  borderRadius: 8,
+  paddingVertical: 12,
+  paddingHorizontal: 24,
+  width: '100%',
+  alignItems: 'center',
+},
+successModalButtonText: {
+  color: 'white',
+  fontWeight: 'bold',
+  fontSize: 16,
+},
+
+
+
+
+
+
+
+
+// Botones base
+  button: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    marginBottom: 25,
+  },
+
+  // Estilos específicos para cada tipo de botón
+  saveButton: {
+    backgroundColor: colors.primary,
+  },
+  cancelButtonGeneral: {  // Renombrado para evitar conflicto
+    backgroundColor: colors.textLight,
+  },
+  disableButtonGeneral: {  // Renombrado para evitar conflicto
+    backgroundColor: colors.error,
+  },
+
+  // Botones de acción (editar/deshabilitar)
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 5,
+  },
+
+  // Botones en modales específicos
+  modalCancelButton: {
+    backgroundColor: colors.textLight,
+    marginRight: 5,
+  },
+  modalDisableButton: {
+    backgroundColor: colors.error,
+    marginLeft: 5,
+  },
+
+ 
   
 });
 

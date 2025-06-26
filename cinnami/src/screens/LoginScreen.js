@@ -6,6 +6,8 @@ import {
 import { globalStyles, colors } from '../styles/globalStyles';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../utils/constants'; 
+
 
 const LoginScreen = ({ navigation, setUserRole }) => {
   const [identifier, setIdentifier] = useState('');
@@ -39,7 +41,7 @@ const LoginScreen = ({ navigation, setUserRole }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://192.168.1.197:3000/api/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password })
@@ -56,6 +58,13 @@ const LoginScreen = ({ navigation, setUserRole }) => {
         await AsyncStorage.setItem('refreshToken', data.refreshToken);
         await AsyncStorage.setItem('userRole', data.user.role);
         await AsyncStorage.setItem('username', data.user.username);
+
+        await AsyncStorage.setItem('userData', JSON.stringify({
+          _id: data.user.id,  // Nota que usamos response.user.id
+          username: data.user.username,
+        }));
+
+  
 
         setUserRole(data.user.role);
       } else {

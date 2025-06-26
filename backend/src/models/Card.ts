@@ -1,10 +1,11 @@
 import { Schema, model, Document, Types } from "mongoose";
 
 export interface ICard extends Document {
-  number: string;
-  user: Types.ObjectId;
-  active: boolean;
-  createdAt?: Date;
+ _id: Types.ObjectId;
+  uid: string;
+  state: string;
+  issueDate: Date;
+  disabled: boolean;
 }
 
 const CardSchema = new Schema<ICard>({

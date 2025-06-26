@@ -1,5 +1,6 @@
 // utils/authHelpers.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from './constants';
 
 // REFRESCAR TOKEN
 export const handleTokenRefresh = async () => {
@@ -11,7 +12,7 @@ export const handleTokenRefresh = async () => {
       return null;
     }
 
-    const response = await fetch('http://192.168.1.7:3000/api/auth/refresh-token', {
+    const response = await fetch(`${API_BASE_URL}/refresh-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: refreshToken }),
