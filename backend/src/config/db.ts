@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 dotenv.config(); // carga las variables de entorno del .env
 
 const connectDBMongo = async (): Promise<void> => {
-  const mongoUri = process.env.MONGO_URI || "mongodb://localhost:27017/cinnamiDB";
+  const mongoUri = process.env.MONGO_URI || "mongodb://localhost:27017/BDCinnami";
   
   try {
     await mongoose.connect(mongoUri);

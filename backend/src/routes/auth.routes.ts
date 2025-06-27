@@ -9,6 +9,7 @@ import {
 import { verifyToken, isAdmin, isSelfOrAdmin } from "../middlewares/auth"; // Nuevo middleware
 
 import { updateUser, disableUser, enableUser, changePassword } from "../controllers/user.controller";
+import { createCard } from "../controllers/tarjet.controller";
 
 const router = Router();
 
@@ -26,5 +27,11 @@ router.put('/:id/update', updateUser); // Editar usuario (sin contraseña)
 router.patch('/:id/disable', disableUser); // Deshabilitar usuario
 router.patch('/:id/enable', isAdmin, enableUser);  // Habilitar usuario (opcional)
 router.post('/:id/change-password', isSelfOrAdmin, changePassword);   // Cambio de contraseña
+
+
+//tarjetas 
+
+router.post('/addCard', createCard); //crear tarjeta
+
 
 export default router;

@@ -20,6 +20,14 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ message: "Credenciales inválidas" });
         }
 
+        // 2. VERIFICAR SI EL USUARIO ESTÁ HABILITADO
+        if (user.status === false) {
+        return res.status(403).json({ 
+            message: "Tu cuenta ha sido deshabilitada. Contacta al administrador para más información.",
+            code: "ACCOUNT_DISABLED"
+        });
+        }
+
         // 2. Verificar contraseña
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
@@ -49,7 +57,8 @@ export const login = async (req: Request, res: Response) => {
                 id: user._id,
                 username: user.username,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                status: user.status
             }
         });
 

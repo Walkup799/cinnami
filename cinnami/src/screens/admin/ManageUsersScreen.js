@@ -359,7 +359,7 @@ const disableUser = async () => {
     
     try {
       const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('${API_BASE_URL}/users', {
+      const response = await fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -385,9 +385,11 @@ const disableUser = async () => {
         loadUsers();
       } else {
         showError(data.message || 'Error al guardar usuario');
+        console.log('Error del backend:', data);
       }
     } catch (error) {
       showError('Error de conexión');
+      console.log('Error de conexión:', error); 
     } finally {
       setIsLoading(false);
     }

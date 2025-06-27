@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { 
-  View, Text, TextInput, TouchableOpacity, Alert, 
+  View, Text, TextInput, TouchableOpacity, 
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator 
 } from 'react-native';
-import { globalStyles, colors } from '../styles/globalStyles';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../utils/constants'; 
-
+import CustomAlert from '../utils/customAlert';
+import { globalStyles, colors } from '../styles/globalStyles';
+import { API_BASE_URL } from '../utils/constants';
 
 const LoginScreen = ({ navigation, setUserRole }) => {
   const [identifier, setIdentifier] = useState('');
@@ -16,6 +16,8 @@ const LoginScreen = ({ navigation, setUserRole }) => {
   const [passwordError, setPasswordError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertData, setAlertData] = useState({ title: '', message: '' });
 
   const handleLogin = async () => {
     setIdentifierError('');
@@ -53,33 +55,70 @@ const LoginScreen = ({ navigation, setUserRole }) => {
       setIsLoading(false);
 
       if (response.ok) {
+        // Verificar si el usuario está habilitado
+        if (data.user?.status === false) {
+          // Limpiar formulario antes de mostrar alerta
+        setIdentifier('');
+        setPassword('');
+        setShowPassword(false);
+          setAlertData({
+            title: 'Cuenta Deshabilitada',
+            message: data.message || 'Tu cuenta ha sido deshabilitada. Contacta al administrador.'
+          });
+          setAlertVisible(true);
+          return;
+        }
+
         // Guardar tokens y datos
-        await AsyncStorage.setItem('userToken', data.accessToken);
-        await AsyncStorage.setItem('refreshToken', data.refreshToken);
-        await AsyncStorage.setItem('userRole', data.user.role);
-        await AsyncStorage.setItem('username', data.user.username);
-
-        await AsyncStorage.setItem('userData', JSON.stringify({
-          _id: data.user.id,  // Nota que usamos response.user.id
-          username: data.user.username,
-        }));
-
-  
+        await AsyncStorage.multiSet([
+          ['userToken', data.accessToken],
+          ['refreshToken', data.refreshToken],
+          ['userRole', data.user.role],
+          ['username', data.user.username],
+          ['userData', JSON.stringify({
+            _id: data.user.id,
+            username: data.user.username,
+            email: data.user.email,
+            role: data.user.role,
+            status: data.user.status
+          })]
+        ]);
 
         setUserRole(data.user.role);
       } else {
-         if (data.message?.toLowerCase().includes('contraseña')) {
-            setPasswordError('Contraseña incorrecta');
-          } else if (data.message?.toLowerCase().includes('usuario')) {
-            setIdentifierError('Correo electrónico o usuario no registrado');
-          } else {
-            setIdentifierError(data.message || 'Error en autenticación');
-            setPasswordError(data.message || 'Error en autenticación');
-          }
+        // Manejo de errores
+        if (response.status === 403 && data.code === 'ACCOUNT_DISABLED') {
+          setIdentifier('');
+        setPassword('');
+        setShowPassword(false);
+
+          setAlertData({
+            title: 'Cuenta Deshabilitada',
+            message: data.message || 'Tu cuenta ha sido deshabilitada. Contacta al administrador.'
+          });
+          setAlertVisible(true);
+        } else if (data.message?.toLowerCase().includes('contraseña')) {
+          setPasswordError('Contraseña incorrecta');
+        } else if (data.message?.toLowerCase().includes('usuario')) {
+          setIdentifierError('Correo electrónico o usuario no registrado');
+        } else {
+          setAlertData({
+            title: 'Error de autenticación',
+            message: data.message || 'Ocurrió un error al iniciar sesión'
+          });
+          setAlertVisible(true);
+        }
       }
     } catch (error) {
+      setIdentifier('');
+        setPassword('');
+        setShowPassword(false);
       setIsLoading(false);
-      Alert.alert('Error de conexión', 'No se pudo conectar con el servidor', [{ text: 'OK' }]);
+      setAlertData({
+        title: 'Error de conexión',
+        message: 'No se pudo conectar con el servidor'
+      });
+      setAlertVisible(true);
       console.error('ERROR LOGIN:', error);
     }
   };
@@ -161,6 +200,13 @@ const LoginScreen = ({ navigation, setUserRole }) => {
         >
           <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
         </TouchableOpacity>
+
+        <CustomAlert
+          visible={alertVisible}
+          title={alertData.title}
+          message={alertData.message}
+          onClose={() => setAlertVisible(false)}
+        />
       </View>
     </KeyboardAvoidingView>
   );
