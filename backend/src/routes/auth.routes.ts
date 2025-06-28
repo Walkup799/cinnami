@@ -9,7 +9,7 @@ import {
 import { verifyToken, isAdmin, isSelfOrAdmin } from "../middlewares/auth"; // Nuevo middleware
 
 import { updateUser, disableUser, enableUser, changePassword } from "../controllers/user.controller";
-import { createCard } from "../controllers/tarjet.controller";
+import { createCard, deleteCard, disableCard, enableCard, getAllCards } from "../controllers/tarjet.controller";
 
 const router = Router();
 
@@ -32,6 +32,10 @@ router.post('/:id/change-password', isSelfOrAdmin, changePassword);   // Cambio 
 //tarjetas 
 
 router.post('/addCard', createCard); //crear tarjeta
+router.get('/cards', verifyToken, getAllCards); // Obtener todas las tarjetas
+router.put('/cards/:id/disable', disableCard); // Deshabilitar tarjeta
+router.put('/cards/:id/enable', enableCard); // Habilitar tarjeta
+router.delete('/cards/:id/delete', deleteCard); // Eliminar tarjeta
 
 
 export default router;

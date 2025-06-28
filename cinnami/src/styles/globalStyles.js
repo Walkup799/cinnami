@@ -7,8 +7,8 @@ export const colors = {
   darkBeige: '#E8D5B5',
   textDark: '#4A3F35',
   textLight: '#7A6E5F',
-  danger: '#E57373',
-  success: '#81C784',
+  danger: '#bc8a5f', // rojo?
+  success: '#a4ac86',
 };
 
 export const globalStyles = StyleSheet.create({

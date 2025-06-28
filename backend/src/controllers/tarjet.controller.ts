@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { Card } from '../models/Card'; // Ajusta la ruta según tu estructura
 import { Types } from 'mongoose';
 
-// POST /api/cards - Crear nueva tarjeta (solo UID)
+//Crear nueva tarjeta (solo UID)
 export const createCard = async (req: Request, res: Response) => {
   try {
     const { uid } = req.body;
@@ -47,7 +47,7 @@ export const createCard = async (req: Request, res: Response) => {
   }
 };
 
-// GET /api/cards - Obtener todas las tarjetas
+// Obtener todas las tarjetas
 export const getAllCards = async (req: Request, res: Response) => {
   try {
     const cards = await Card.find()
@@ -173,7 +173,7 @@ export const updateCardUID = async (req: Request, res: Response) => {
   }
 };
 
-// PUT /api/cards/:id/disable - Deshabilitar tarjeta
+//Deshabilitar tarjeta
 export const disableCard = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -209,7 +209,7 @@ export const disableCard = async (req: Request, res: Response) => {
   }
 };
 
-// PUT /api/cards/:id/enable - Rehabilitar tarjeta
+// Rehabilitar tarjeta
 export const enableCard = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -244,6 +244,40 @@ export const enableCard = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error al rehabilitar tarjeta', error });
   }
 };
+
+
+
+//ELIMINA TARJETAS
+export const deleteCard = async (req: Request, resp: Response) =>{
+
+  try {
+    const { id } = req.params;
+
+    // Validar ObjectId
+    if (!Types.ObjectId.isValid(id)) {
+      return resp.status(400).json({
+        message: 'ID de tarjeta inválido'
+      });
+    }
+
+    const card = await Card.findByIdAndDelete(id);
+
+    if (!card) {
+      return resp.status(404).json({
+        message: 'Tarjeta no encontrada'
+      });
+    }
+
+    resp.status(200).json({
+      message: 'Tarjeta eliminada exitosamente',
+      card
+    });
+
+  } catch (error) {
+    console.error('Error ocurrido en deleteCard:', error);
+    resp.status(500).json({ message: 'Error al eliminar tarjeta', error });
+  }
+}
 
 // PUT /api/cards/:id/assign - Asignar tarjeta a usuario
 export const assignCard = async (req: Request, res: Response) => {

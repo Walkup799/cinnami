@@ -2,13 +2,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from './constants';
 
-// REFRESCAR TOKEN
-export const handleTokenRefresh = async () => {
+export const handleTokenRefresh = async (showError) => {
   try {
     const refreshToken = await AsyncStorage.getItem('refreshToken');
 
     if (!refreshToken) {
-      console.log('No hay refresh token disponible');
+      showError?.('La sesión ha expirado. Por favor ingresa nuevamente');
       return null;
     }
 
@@ -25,28 +24,24 @@ export const handleTokenRefresh = async () => {
       await AsyncStorage.setItem('refreshToken', data.refreshToken);
       return data.accessToken;
     } else {
-      console.log('Error al refrescar token:', data.message);
-
-      // Si falló el refresh, se cierra sesión
+      showError?.(data.message || 'Error al renovar la sesión');
       await logoutUser(); 
       return null;
     }
   } catch (error) {
-    console.error('Error en handleTokenRefresh:', error);
-    await logoutUser(); // por si hubo un fallo total
+    showError?.('Error de conexión al renovar sesión');
+    await logoutUser();
     return null;
   }
 };
 
-
-// CERRAR SESIÓN (con backend)
-export const logoutUser = async (setUserRole) => {
+export const logoutUser = async (setUserRole, showError) => {
   try {
     const refreshToken = await AsyncStorage.getItem('refreshToken');
     const accessToken = await AsyncStorage.getItem('userToken');
 
     if (refreshToken && accessToken) {
-      await fetch('192.168.1.197:3000/api/auth/logout', {
+      await fetch(`${API_BASE_URL}/logout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -56,16 +51,14 @@ export const logoutUser = async (setUserRole) => {
       });
     }
   } catch (error) {
+    showError?.('Error al cerrar sesión en el servidor');
     console.error('Error al cerrar sesión en el backend:', error);
   }
 
   // Eliminar localmente
-  await AsyncStorage.removeItem('userToken');
-  await AsyncStorage.removeItem('refreshToken');
-  await AsyncStorage.removeItem('userRole');
-  await AsyncStorage.removeItem('username');
+  await AsyncStorage.multiRemove(['userToken', 'refreshToken', 'userRole', 'username']);
 
   if (setUserRole) {
-    setUserRole(null); // Esto activa el redireccionamiento en App.js
+    setUserRole(null);
   }
 };

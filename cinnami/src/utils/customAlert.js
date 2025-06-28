@@ -2,7 +2,22 @@ import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const CustomAlert = ({ visible, title, message, onClose }) => {
+const CustomAlert = ({ visible, title, message, onClose, alertType = 'warning' }) => {
+  const config = {
+    warning: {
+      icon: 'warning',
+      iconColor: '#D32F2F',
+      titleColor: '#D32F2F',
+      buttonColor: '#D2A679',
+    },
+    success: {
+      icon: 'checkmark-circle',
+      iconColor: '#4CAF50',
+      titleColor: '#4CAF50',
+      buttonColor: '#D2A679',
+    }
+  }[alertType];
+
   return (
     <Modal
       visible={visible}
@@ -12,10 +27,13 @@ const CustomAlert = ({ visible, title, message, onClose }) => {
     >
       <View style={styles.overlay}>
         <View style={styles.alertContainer}>
-          <Ionicons name="warning" size={40} color="#D32F2F" style={styles.icon} />
-          <Text style={styles.title}>{title}</Text>
+          <Ionicons name={config.icon} size={40} color={config.iconColor} style={styles.icon} />
+          <Text style={[styles.title, { color: config.titleColor }]}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
-          <TouchableOpacity style={styles.button} onPress={onClose}>
+          <TouchableOpacity 
+            style={[styles.button, { backgroundColor: config.buttonColor }]} 
+            onPress={onClose}
+          >
             <Text style={styles.buttonText}>Entendido</Text>
           </TouchableOpacity>
         </View>
@@ -30,42 +48,33 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
   alertContainer: {
-    width: '100%',
-    maxWidth: 350,
     backgroundColor: 'white',
     borderRadius: 10,
     padding: 20,
+    width: '80%',
     alignItems: 'center',
-  },
-  icon: {
-    marginBottom: 10,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#D32F2F',
     marginBottom: 10,
-    textAlign: 'center',
   },
   message: {
     fontSize: 16,
-    color: '#333',
     marginBottom: 20,
     textAlign: 'center',
-    lineHeight: 22,
   },
   button: {
-    backgroundColor: '#D32F2F',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    padding: 10,
     borderRadius: 5,
+    minWidth: 100,
   },
   buttonText: {
     color: 'white',
     fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
 

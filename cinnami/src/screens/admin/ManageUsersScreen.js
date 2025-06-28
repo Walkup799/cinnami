@@ -5,6 +5,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Modal, Portal, Provider } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { API_BASE_URL } from '../../utils/constants';
+import CustomAlert from '../../utils/customAlert';
 
 
 
@@ -28,6 +29,32 @@ const ManageUsersScreen = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [userModalVisible, setUserModalVisible] = useState(false);
   const [editMode, setEditMode] = useState(false);
+
+
+  // Estados para alertas
+    const [alertData, setAlertData] = useState({
+      visible: false,
+      title: '',
+      message: '',
+      type: 'warning'
+    });
+  
+    // Helpers de alerta
+    const showAlert = (title, message, type = 'warning') => {
+      setAlertData({
+        visible: true,
+        title,
+        message,
+        type
+      });
+    };
+  
+    const hideAlert = () => {
+      setAlertData(prev => ({ ...prev, visible: false }));
+    };
+  
+    const showError = (message, title = 'Error') => showAlert(title, message, 'warning');
+    const showSuccess = (message, title = 'Éxito') => showAlert(title, message, 'success');
 
 
    // Función para abrir el modal con los datos del usuario
@@ -152,7 +179,6 @@ const disableUser = async () => {
       
       setEditMode(false);
       setEditSuccessModal(true);
-      Alert.alert('Éxito', 'Cambios guardados correctamente');
       console.log('Usuario actualizado:');
     } else {
       showError(data.message || 'Error al actualizar usuario');
@@ -395,10 +421,7 @@ const disableUser = async () => {
     }
   };
 
-  const showError = (message) => {
-    // Aquí podrías usar un toast o snackbar en lugar de alerta
-    Alert.alert('Error', message);
-  };
+ 
 
   return (
     <Provider>
@@ -777,7 +800,7 @@ const disableUser = async () => {
                         styles.userDetailValue,
                         selectedUser?.status !== false ? styles.activeUser : styles.inactiveUser
                       ]}>
-                        {selectedUser?.active  !== false ? 'Activo' : 'Inactivo'}
+                        {selectedUser?.status  !== false ? 'Activo' : 'Inactivo'}
                       </Text>
                     </View>
                   </View>
@@ -851,7 +874,7 @@ const disableUser = async () => {
               ¿Estás seguro que deseas deshabilitar a {selectedUser?.firstName} {selectedUser?.lastName}?
             </Text>
             
-            <View style={styles.confirmModalButtonText}>
+            <View style={styles.actionButtonsContainer}>
               <TouchableOpacity
                 style={[styles.confirmModalButtonText, styles.modalCancelButton]}
                 onPress={() => setConfirmModalVisible(false)}
@@ -904,6 +927,14 @@ const disableUser = async () => {
         </Portal>
 
       </View>
+
+      <CustomAlert
+        visible={alertData.visible}
+        title={alertData.title}
+        message={alertData.message}
+        alertType={alertData.type}
+        onClose={hideAlert}
+      />
     </Provider>
   );
 };
@@ -1171,13 +1202,13 @@ const styles = StyleSheet.create({
   },
 
   userModalContainer: {
-    padding: 20,
+    padding: 15,
   },
   userModalContent: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 20,
-    maxHeight: '80%',
+    maxHeight: '100%',
   },
   userModalHeader: {
     alignItems: 'center',
