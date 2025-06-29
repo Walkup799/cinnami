@@ -6,11 +6,12 @@ import { Modal, Portal, Provider } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { API_BASE_URL } from '../../utils/constants';
 import CustomAlert from '../../utils/customAlert';
+import AuthErrorModal from '../../utils/AuthErrorModal';
+import { logoutUser } from '../../utils/authHelpers';
 
 
 
-
-const ManageUsersScreen = () => {
+const ManageUsersScreen = ({ setUserRole }) => {
   const navigation = useNavigation();
   const [users, setUsers] = useState([]);
   const [searchText, setSearchText] = useState('');
@@ -29,6 +30,29 @@ const ManageUsersScreen = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [userModalVisible, setUserModalVisible] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  
+
+  const [authError, setAuthError] = useState({
+    visible: false,
+    message: ''
+  });
+
+  // Función para mostrar errores de autenticación
+  const showAuthError = (message) => {
+    setAuthError({
+      visible: true,
+      message: message || 'Tu sesión ha expirado. Por favor ingresa nuevamente.'
+    });
+  };
+
+  // Función para manejar logout
+  const handleLogout = async () => {
+    try {
+      await logoutUser(setUserRole);
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
+  };
 
 
   // Estados para alertas
@@ -38,7 +62,6 @@ const ManageUsersScreen = () => {
       message: '',
       type: 'warning'
     });
-  
     // Helpers de alerta
     const showAlert = (title, message, type = 'warning') => {
       setAlertData({
@@ -263,7 +286,7 @@ const disableUser = async () => {
     getCurrentUser();
   }, []);
 
-  const loadUsers = async () => {
+const loadUsers = async () => {
   setIsLoading(true);
   try {
     // 1. Obtener usuario actual
@@ -314,11 +337,20 @@ const disableUser = async () => {
 
   } catch (error) {
     console.error('Error en loadUsers:', error);
-    showError(error.message || 'Error al cargar usuarios');
+    if (error.message.includes('token expirado') || 
+          error.message.includes('No hay token')) {
+        showAuthError(error.message);
+      } else {
+        // Usa tu alerta normal para otros errores
+        showError(error.message);
+      }
   } finally {
     setIsLoading(false);
   }
 };
+
+
+
   const validateField = (name, value) => {
     let error = '';
     
@@ -921,11 +953,10 @@ const disableUser = async () => {
                 <Text style={styles.successModalButtonText}>Aceptar</Text>
               </TouchableOpacity>
             </View>
-          </Modal>
+          </Modal> 
 
         
         </Portal>
-
       </View>
 
       <CustomAlert
@@ -934,6 +965,16 @@ const disableUser = async () => {
         message={alertData.message}
         alertType={alertData.type}
         onClose={hideAlert}
+      />
+
+       <AuthErrorModal
+        visible={authError.visible}
+        message={authError.message}
+        onClose={() => {
+          setAuthError({ visible: false, message: '' });
+          handleLogout();
+        }}
+        onLogout={handleLogout}
       />
     </Provider>
   );
@@ -1472,12 +1513,6 @@ successModalButtonText: {
   fontWeight: 'bold',
   fontSize: 16,
 },
-
-
-
-
-
-
 
 
 // Botones base

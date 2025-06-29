@@ -25,7 +25,7 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
         req.userId = decoded.userId; // Añade el ID al request
         next();
     } catch (error) {
-        res.status(403).json({ message: 'Token inválido o expirado' });
+        res.status(403).json({ message: 'Token inválido o expirado, Se le recomienda volver a iniciar sesión' });
     }
 };
 
