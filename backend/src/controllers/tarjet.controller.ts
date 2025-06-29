@@ -65,7 +65,7 @@ export const getAllCards = async (req: Request, res: Response) => {
   }
 };
 
-// GET /api/cards/available - Obtener tarjetas disponibles para asignar
+///api/cards/available - Obtener tarjetas disponibles para asignar
 export const getAvailableCards = async (req: Request, res: Response) => {
   try {
     const availableCards = await Card.find({

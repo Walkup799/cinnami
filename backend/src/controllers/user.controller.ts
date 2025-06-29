@@ -5,6 +5,7 @@ import { RefreshToken } from "../utils/RefreshToken"; // Nuevo modelo para refre
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import dayjs from "dayjs";
+import { Types } from 'mongoose';
 
 
 
@@ -73,7 +74,7 @@ export const changePassword = async (req: Request, res: Response) => {
         const { currentPassword, newPassword } = req.body;
 
         // Verificar que el usuario que hace la petición es el mismo
-        if (req.user._id.toString() !== id) {
+        if (!req.user || req.user._id.toString() !== id) {
             return res.status(403).json({ 
                 message: "No tienes permiso para cambiar esta contraseña" 
             });
@@ -173,4 +174,50 @@ export const enableUser = async (req: Request, res: Response) => {
             error: error.message 
         });
     }
+};
+
+
+
+// ACTUALIZAR CARD ID DEL USUARIO
+// Esta función actualiza el cardId de un usuario específico
+// En controllers/users.controller.ts
+// En controllers/users.controller.ts
+export const updateUserCardId = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { cardId } = req.body; // Recibimos cardId (que contendrá el UID)
+
+    // Validación básica
+    if (cardId && typeof cardId !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'El ID de tarjeta debe ser una cadena de texto'
+      });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { cardId }, // Actualizamos cardId con el UID string
+      { new: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Tarjeta actualizada exitosamente',
+      user: updatedUser
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar la tarjeta del usuario'
+    });
+  }
 };

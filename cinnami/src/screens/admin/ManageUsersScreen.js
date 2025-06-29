@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Keyboard, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Keyboard, Alert, FlatList,  } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Modal, Portal, Provider } from 'react-native-paper';
@@ -11,7 +11,7 @@ import { logoutUser } from '../../utils/authHelpers';
 
 
 
-const ManageUsersScreen = ({ setUserRole }) => {
+const ManageUsersScreen = () => {
   const navigation = useNavigation();
   const [users, setUsers] = useState([]);
   const [searchText, setSearchText] = useState('');
@@ -30,7 +30,12 @@ const ManageUsersScreen = ({ setUserRole }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [userModalVisible, setUserModalVisible] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  
+
+  const [availableCards, setAvailableCards] = useState([]);
+  const [showCardPicker, setShowCardPicker] = useState(false);
+  const [isLoadingCards, setIsLoadingCards] = useState(false);
+  const [selectedCard, setSelectedCard] = useState(null);
+    
 
   const [authError, setAuthError] = useState({
     visible: false,
@@ -87,7 +92,6 @@ const ManageUsersScreen = ({ setUserRole }) => {
     setUserModalVisible(true);
     setEditMode(false);
   };
-
 
  
 
@@ -286,6 +290,45 @@ const disableUser = async () => {
     getCurrentUser();
   }, []);
 
+
+ const loadAvailableCards = async () => {
+  try {
+    setIsLoadingCards(true);
+    const token = await AsyncStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/cards/available`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error al obtener tarjetas');
+    }
+    
+    const data = await response.json();
+    setAvailableCards(data.cards || []);
+  } catch (error) {
+    console.error('Error loading cards:', error);
+    Alert.alert('Error', 'No se pudieron cargar las tarjetas disponibles');
+  } finally {
+    setIsLoadingCards(false);
+  }
+};
+
+// Llama esta función cuando se muestre el formulario
+useEffect(() => {
+  if (showForm) {
+    loadAvailableCards();
+  }
+}, [showForm]);
+
+// Llama esta función cuando se muestre el formulario
+useEffect(() => {
+  if (showForm) {
+    loadAvailableCards();
+  }
+}, [showForm]);
+
 const loadUsers = async () => {
   setIsLoading(true);
   try {
@@ -409,51 +452,93 @@ const loadUsers = async () => {
     return isValid;
   };
 
-  const handleSaveUser = async () => {
-    Keyboard.dismiss();
-    if (!validateForm()) return;
+ const handleSaveUser = async () => {
+  Keyboard.dismiss();
+  if (!validateForm()) return;
 
-    setIsLoading(true);
+  setIsLoading(true);
+  
+  try {
+    const token = await AsyncStorage.getItem('userToken');
     
-    try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`${API_BASE_URL}/users`, {
-        method: 'POST',
+    // 1. Preparar datos (sin confirmPassword)
+    const { confirmPassword, ...userData } = formData;
+    const userToCreate = {
+      ...userData,
+      cardId: selectedCard?.uid // Usamos el uid de la tarjeta seleccionada
+    };
+
+    // 2. Crear usuario
+    const userResponse = await fetch(`${API_BASE_URL}/users`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(userToCreate),
+    });
+
+    const responseData = await userResponse.json(); // Respuesta del servidor
+    console.log('Respuesta del servidor:', responseData); // ¡Verifica esto!
+
+    // 3. Extraer el ID del usuario correctamente (aquí está la línea clave)
+    const userId = responseData.user._id; // ← Aquí accedemos al _id dentro de "user"
+    console.log('ID del usuario creado:', userId); // Verifica que obtienes el ID 
+    if (!userResponse.ok || !userId) {
+      throw new Error(responseData.message || 'Error al crear usuario: ID no recibido');
+    }
+
+    // 4. Asignar tarjeta si existe
+    if (selectedCard) {
+      const assignResponse = await fetch(`${API_BASE_URL}/cards/${selectedCard._id}/assign`, {
+        method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ userId }), // Usamos el userId extraído
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setModalVisible(true);
-        setFormData({
-          username: '',
-          email: '',
-          password: '',
-          confirmPassword: '',
-          role: 'docente',
-          firstName: '',
-          lastName: '',
-          cardId: ''
-        });
-        loadUsers();
-      } else {
-        showError(data.message || 'Error al guardar usuario');
-        console.log('Error del backend:', data);
-      }
-    } catch (error) {
-      showError('Error de conexión');
-      console.log('Error de conexión:', error); 
-    } finally {
-      setIsLoading(false);
+       // Éxito
+    setModalVisible(true);
+    resetForm();
+    loadUsers();
+    loadAvailableCards();
     }
-  };
 
- 
+   
+
+  } catch (error) {
+     console.error('Error completo:', error);
+     showError(error.message || 'Error al guardar usuario');
+   
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const resetForm = () => {
+  setFormData({
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: 'docente',
+    firstName: '',
+    lastName: '',
+    cardId: ''
+  });
+  setErrors({
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+    cardId: ''
+  });
+  setSelectedCard(null);
+};
 
   return (
     <Provider>
@@ -503,7 +588,7 @@ const loadUsers = async () => {
               { name: 'email', label: 'Correo electrónico', icon: 'email', keyboardType: 'email-address' },
               { name: 'firstName', label: 'Nombres', icon: 'card-account-details' },
               { name: 'lastName', label: 'Apellidos', icon: 'card-account-details' },
-              { name: 'cardId', label: 'ID de Tarjeta', icon: 'card-bulleted' },
+              
             ].map((field) => (
               <View key={field.name} style={styles.inputContainer}>
                 <View style={styles.inputLabel}>
@@ -525,6 +610,35 @@ const loadUsers = async () => {
                 )}
               </View>
             ))}
+            {/* Nuevo campo para selección de tarjeta (REEMPLAZO DEL CARD_ID) */}
+      <View style={styles.inputContainer}>
+        <View style={styles.inputLabel}>
+          <Icon name="card-bulleted" size={18} color={colors.textLight} />
+          <Text style={styles.labelText}>Tarjeta Asignada</Text>
+        </View>
+        
+        {/* Selector de tarjetas */}
+        <TouchableOpacity 
+          style={[
+            styles.input,
+            styles.cardSelector,
+            errors.cardId && styles.inputError
+          ]}
+          onPress={() => setShowCardPicker(true)}
+        >
+          <Text style={formData.cardId ? {} : {color: colors.textLight}}>
+            {formData.cardId || 'Seleccione una tarjeta disponible...'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Modal para seleccionar tarjeta */}
+      {/* Modal para seleccionar tarjeta */}
+
+        {errors.cardId && (
+          <Text style={styles.errorText}>{errors.cardId}</Text>
+        )}
+      </View>
+
 
             {/* Contraseñas */}
             <View style={styles.inputContainer}>
@@ -955,8 +1069,56 @@ const loadUsers = async () => {
             </View>
           </Modal> 
 
+          <Modal
+  visible={showCardPicker}
+  transparent={true}
+  animationType="slide"
+>
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalContent}>
+      <Text style={styles.modalTitle}>Tarjetas Disponibles</Text>
+      
+      {isLoadingCards ? (
+        <ActivityIndicator size="large" color={colors.primary} />
+      ) : availableCards.length === 0 ? (
+        <Text style={styles.emptyText}>No hay tarjetas disponibles</Text>
+      ) : (
+        <View style={styles.listContainer}>
+          {availableCards.map((item) => (
+            <TouchableOpacity
+              key={item._id}
+              style={styles.cardItem}
+              onPress={() => {
+                handleInputChange('cardId', item.uid);
+                setSelectedCard(item);
+                setShowCardPicker(false);
+              }}
+            >
+              <Text style={styles.cardText}>UID: {item.uid}</Text>
+              <Text style={styles.cardDate}>
+                Creada: {new Date(item.issueDate).toLocaleDateString()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      
+      <TouchableOpacity
+        style={styles.closeButton}
+        onPress={() => setShowCardPicker(false)}
+      >
+        <Text style={styles.closeButtonText}>Cancelar</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
+
+          
+
         
         </Portal>
+
+        
       </View>
 
       <CustomAlert
@@ -1202,15 +1364,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.text,
   },
-  modalContainer: {
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-  },
+  // ...existing code...
+modalContainer: {
+  flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: 20,
+},
+modalContent: {
+  backgroundColor: 'white',
+  borderRadius: 12,
+  padding: 24,
+  alignItems: 'center',
+  justifyContent: 'center',
+  minWidth: 250,
+},
+// ...existing code...
   modalIcon: {
     marginBottom: 16,
   },
@@ -1558,7 +1727,59 @@ successModalButtonText: {
     backgroundColor: colors.error,
     marginLeft: 5,
   },
-
+  cardSelector: {
+  justifyContent: 'center',
+  paddingVertical: 15,
+},
+modalOverlay: {
+  flex: 1,
+  justifyContent: 'center',
+  padding: 20,
+},
+modalContent: {
+  backgroundColor: 'white',
+  borderRadius: 10,
+  padding: 20,
+  maxHeight: '80%',
+},
+modalTitle: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  marginBottom: 15,
+  textAlign: 'center',
+},
+listContainer: {
+  maxHeight: 300, // Altura máxima para la lista
+},
+cardItem: {
+  padding: 15,
+  borderBottomWidth: 1,
+  borderBottomColor: '#eee',
+},
+cardText: {
+  fontSize: 16,
+},
+cardDate: {
+  fontSize: 12,
+  color: colors.textLight,
+  marginTop: 5,
+},
+emptyText: {
+  textAlign: 'center',
+  padding: 20,
+  color: colors.textLight,
+},
+closeButton: {
+  marginTop: 15,
+  padding: 10,
+  backgroundColor: colors.danger,
+  borderRadius: 5,
+  alignItems: 'center',
+},
+closeButtonText: {
+  color: 'white',
+  fontWeight: 'bold',
+},
  
   
 });
