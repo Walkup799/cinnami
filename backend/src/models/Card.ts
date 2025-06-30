@@ -50,7 +50,7 @@ const CardSchema = new Schema<ICard>({
 });
 
 // Índices para optimizar consultas
-CardSchema.index({ uid: 1 });
+
 CardSchema.index({ assignedTo: 1 });
 CardSchema.index({ state: 1 });
 

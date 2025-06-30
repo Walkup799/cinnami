@@ -279,7 +279,7 @@ export const deleteCard = async (req: Request, resp: Response) =>{
   }
 }
 
-// PUT /api/cards/:id/assign - Asignar tarjeta a usuario
+// Asignar tarjeta a usuario
 export const assignCard = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -322,7 +322,7 @@ export const assignCard = async (req: Request, res: Response) => {
   }
 };
 
-// PUT /api/cards/:id/unassign - Desasignar tarjeta
+//Desasignar tarjeta
 export const unassignCard = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -343,7 +343,7 @@ export const unassignCard = async (req: Request, res: Response) => {
     }
 
     // Desasignar tarjeta
-    card.assignedTo = undefined;
+    card.assignedTo = null; // <-- Mejor usar null
     const updatedCard = await card.save();
 
     res.status(200).json({

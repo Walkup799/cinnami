@@ -35,12 +35,30 @@ const ManageUsersScreen = () => {
   const [showCardPicker, setShowCardPicker] = useState(false);
   const [isLoadingCards, setIsLoadingCards] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
+
+
+  const [allCards, setAllCards] = useState([]);
     
 
   const [authError, setAuthError] = useState({
     visible: false,
     message: ''
   });
+
+  // funcion global para obtener TODAS las tarjetas
+  const loadAllCards = async () => {
+  try {
+    const token = await AsyncStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/cards`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Error al obtener todas las tarjetas');
+    const data = await response.json();
+    setAllCards(data.cards || []);
+  } catch (error) {
+    console.error('Error al cargar todas las tarjetas:', error);
+  }
+};
 
   // Función para mostrar errores de autenticación
   const showAuthError = (message) => {
@@ -137,20 +155,14 @@ const disableUser = async () => {
   }
 };
 
-
-
-   // Función para guardar cambios al editar
-  const handleSaveChanges = async () => {
-  // Validar el formulario primero (sin validar contraseña ya que admin no la cambia)
+const handleSaveChanges = async () => {
   let isValid = true;
   const fieldsToValidate = ['username', 'email', 'firstName', 'lastName', 'cardId'];
-  
   fieldsToValidate.forEach(field => {
     if (!validateField(field, formData[field])) {
       isValid = false;
     }
   });
-  
   if (!isValid) {
     showError('Por favor corrige los errores en el formulario');
     return;
@@ -159,6 +171,28 @@ const disableUser = async () => {
   setIsLoading(true);
   try {
     const token = await AsyncStorage.getItem('userToken');
+
+    // 1. Buscar el _id de la tarjeta anterior usando el UID viejo
+    const prevCard = allCards.find(card => card.uid === selectedUser.cardId);
+    const prevCardId = prevCard ? prevCard._id : null;
+
+    console.log('selectedUser.cardId:', selectedUser.cardId, typeof selectedUser.cardId);
+    console.log('formData.cardId:', formData.cardId, typeof formData.cardId);
+    console.log('prevCardId:', prevCardId);
+
+    // 2. Si cambió la tarjeta, desasigna la anterior primero
+    if (selectedUser.cardId !== formData.cardId && prevCardId) {
+      await fetch(`${API_BASE_URL}/cards/${prevCardId}/unassign`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({}),
+      });
+    }
+
+     // 3. Actualiza el usuario con el nuevo UID
     const response = await fetch(`${API_BASE_URL}/${selectedUser._id}/update`, {
       method: 'PUT',
       headers: { 
@@ -170,56 +204,41 @@ const disableUser = async () => {
         email: formData.email,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        cardId: formData.cardId,
+        cardId: formData.cardId, // Nuevo UID
         role: formData.role
-        // No incluimos password ni confirmPassword
       }),
     });
 
     const data = await response.json();
 
+     // 4. Asigna la nueva tarjeta (opcional)
+    const newCard = availableCards.find(card => card.uid === formData.cardId);
+    if (selectedUser.cardId !== formData.cardId && newCard?._id) {
+      await fetch(`${API_BASE_URL}/cards/${newCard._id}/assign`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId: selectedUser._id }),
+      });
+    }
+
     if (response.ok) {
-      // Actualizar el estado local con los cambios
-      const updatedUsers = users.map(user => 
-        user._id === selectedUser._id ? { 
-          ...user, 
-          username: formData.username,
-          email: formData.email,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          cardId: formData.cardId,
-          role: formData.role
-        } : user
-      );
-      
-      setUsers(updatedUsers);
-      setFilteredUsers(updatedUsers);
-      setSelectedUser(prev => ({
-        ...prev,
-        username: formData.username,
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        cardId: formData.cardId,
-        role: formData.role
-      }));
-      
-      setEditMode(false);
+      // ...actualiza estado local, muestra modal de éxito, etc...
       setEditSuccessModal(true);
-      console.log('Usuario actualizado:');
     } else {
       showError(data.message || 'Error al actualizar usuario');
-      console.error('Error del backend:', data);
     }
   } catch (error) {
-    console.error('Error de conexión:', error);
     showError('Error de conexión al guardar cambios');
   } finally {
     setIsLoading(false);
   }
 };
 
-  // Función para entrar en modo edición
+
+// Función para entrar en modo edición
   const enterEditMode = () => {
     setFormData({
       username: selectedUser.username,
@@ -260,6 +279,7 @@ const disableUser = async () => {
   // Cargar usuarios al iniciar
   useEffect(() => {
     loadUsers();
+    loadAllCards();
   }, []);
   
 
@@ -479,7 +499,7 @@ const loadUsers = async () => {
     });
 
     const responseData = await userResponse.json(); // Respuesta del servidor
-    console.log('Respuesta del servidor:', responseData); // ¡Verifica esto!
+    console.log('Respuesta del servidor:', responseData); 
 
     // 3. Extraer el ID del usuario correctamente (aquí está la línea clave)
     const userId = responseData.user._id; // ← Aquí accedemos al _id dentro de "user"
@@ -517,6 +537,29 @@ const loadUsers = async () => {
   }
 };
 
+const loadAvailableCardsForEdit = async () => {
+  try {
+    setIsLoadingCards(true);
+    const token = await AsyncStorage.getItem('userToken');
+    // Incluye la tarjeta actual en la consulta
+    const response = await fetch(
+      `${API_BASE_URL}/cards/available?include=${formData.cardId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    if (!response.ok) throw new Error('Error al obtener tarjetas');
+    const data = await response.json();
+    setAvailableCards(data.cards || []);
+  } catch (error) {
+    Alert.alert('Error', 'No se pudieron cargar las tarjetas disponibles');
+  } finally {
+    setIsLoadingCards(false);
+  }
+};
+
 const resetForm = () => {
   setFormData({
     username: '',
@@ -548,7 +591,13 @@ const resetForm = () => {
           <Text style={styles.title}>Gestión de Usuarios</Text>
           <TouchableOpacity 
             style={styles.addButton}
-            onPress={() => setShowForm(!showForm)}
+            onPress={() => {
+              if (!showForm) {
+                resetForm(); // Vacía el formulario solo al abrir
+                setSelectedCard(null);
+              }
+              setShowForm(!showForm);
+            }}
           >
             <Icon 
               name={showForm ? 'close' : 'plus'} 
@@ -631,8 +680,7 @@ const resetForm = () => {
           </Text>
         </TouchableOpacity>
 
-        {/* Modal para seleccionar tarjeta */}
-      {/* Modal para seleccionar tarjeta */}
+        
 
         {errors.cardId && (
           <Text style={styles.errorText}>{errors.cardId}</Text>
@@ -819,6 +867,7 @@ const resetForm = () => {
 
 
               {editMode ? (
+                <>
                 <ScrollView contentContainerStyle={styles.editScrollContainer} >
                   <Text style={styles.userModalTitle}>Editar Usuario</Text>
                   
@@ -828,7 +877,6 @@ const resetForm = () => {
                     { name: 'email', label: 'Correo electrónico', icon: 'email', keyboardType: 'email-address' },
                     { name: 'firstName', label: 'Nombres', icon: 'card-account-details' },
                     { name: 'lastName', label: 'Apellidos', icon: 'card-account-details' },
-                    { name: 'cardId', label: 'ID de Tarjeta', icon: 'card-bulleted' },
                   ].map((field) => (
                     <View key={field.name} style={styles.inputContainer}>
                       <View style={styles.inputLabel}>
@@ -850,6 +898,37 @@ const resetForm = () => {
                       )}
                     </View>
                   ))}
+
+
+                  {/* Campo de tarjeta como selector */}
+                  <View style={styles.inputContainer}>
+                    <View style={styles.inputLabel}>
+                      <Icon name="card-bulleted" size={18} color={colors.textLight} />
+                      <Text style={styles.labelText}>Tarjeta Asignada</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.input,
+                        styles.cardSelector,
+                        errors.cardId && styles.inputError
+                      ]}
+                     onPress={() => {
+                        if (editMode) {
+                          loadAvailableCardsForEdit();
+                        } else {
+                          loadAvailableCards();
+                        }
+                        setShowCardPicker(true);
+                      }}
+                    >
+                      <Text style={formData.cardId ? {} : { color: colors.textLight }}>
+                        {formData.cardId || 'Seleccione una tarjeta disponible...'}
+                      </Text>
+                    </TouchableOpacity>
+                    {errors.cardId && (
+                      <Text style={styles.errorText}>{errors.cardId}</Text>
+                    )}
+                  </View>
 
                   {/* Rol */}
                   <View style={styles.inputContainer}>
@@ -900,8 +979,58 @@ const resetForm = () => {
                       )}
                     </TouchableOpacity>
                   </View>
+                  
                 </ScrollView>
+
+            <Portal>
+              <Modal
+                visible={showCardPicker}
+                onDismiss={() => setShowCardPicker(false)}
+                contentContainerStyle={styles.modalOverlay}
+              >
+                <View style={styles.cardPickerModalContent}>
+                  <Text style={styles.modalTitle}>Tarjetas Disponibles</Text>
+                  {isLoadingCards ? (
+                    <ActivityIndicator size="large" color={colors.primary} />
+                  ) : availableCards.length === 0 ? (
+                    <Text style={styles.emptyText}>No hay tarjetas disponibles</Text>
+                  ) : (
+                    <FlatList
+                      style={{height: 300}}
+                      contentContainerStyle={{paddingBottom: 20}}
+                      data={availableCards}
+                      keyExtractor={item => item._id}
+                      renderItem={({ item }) => (
+                        <TouchableOpacity
+                          style={styles.cardItem}
+                          onPress={() => {
+                            handleInputChange('cardId', item.uid);
+                            setSelectedCard(item);
+                            setShowCardPicker(false);
+                          }}
+                        >
+                          <Text style={styles.cardText}>UID: {item.uid}</Text>
+                          <Text style={styles.cardDate}>
+                            Creada: {new Date(item.issueDate).toLocaleDateString()}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    />
+                  )}
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => setShowCardPicker(false)}
+                  >
+                    <Text style={{ color: colors.text }}>Cancelar</Text>
+                  </TouchableOpacity>
+                </View>
+              </Modal>
+            </Portal> 
+
+            </>
+                
               ) : (
+                
                 <>
                   <View style={styles.userModalHeader}>
                     <View style={styles.userModalAvatar}>
@@ -1068,25 +1197,30 @@ const resetForm = () => {
               </TouchableOpacity>
             </View>
           </Modal> 
+        </Portal>
 
-          <Modal
-  visible={showCardPicker}
-  transparent={true}
-  animationType="slide"
->
-  <View style={styles.modalOverlay}>
-    <View style={styles.modalContent}>
+        
+        {/* Modal de selección de tarjeta */}
+        <Portal>
+  <Modal
+    visible={showCardPicker}
+    onDismiss={() => setShowCardPicker(false)}
+    contentContainerStyle={styles.modalOverlay}
+  >
+    <View style={styles.cardPickerModalContent}>
       <Text style={styles.modalTitle}>Tarjetas Disponibles</Text>
-      
       {isLoadingCards ? (
         <ActivityIndicator size="large" color={colors.primary} />
       ) : availableCards.length === 0 ? (
         <Text style={styles.emptyText}>No hay tarjetas disponibles</Text>
       ) : (
-        <View style={styles.listContainer}>
-          {availableCards.map((item) => (
+        <FlatList
+          style={{height: 300}}
+          contentContainerStyle={{paddingBottom: 20}}
+          data={availableCards}
+          keyExtractor={item => item._id}
+          renderItem={({ item }) => (
             <TouchableOpacity
-              key={item._id}
               style={styles.cardItem}
               onPress={() => {
                 handleInputChange('cardId', item.uid);
@@ -1099,24 +1233,18 @@ const resetForm = () => {
                 Creada: {new Date(item.issueDate).toLocaleDateString()}
               </Text>
             </TouchableOpacity>
-          ))}
-        </View>
+          )}
+        />
       )}
-      
       <TouchableOpacity
         style={styles.closeButton}
         onPress={() => setShowCardPicker(false)}
       >
-        <Text style={styles.closeButtonText}>Cancelar</Text>
+        <Text style={{ color: colors.text }}>Cancelar</Text>
       </TouchableOpacity>
     </View>
-  </View>
-</Modal>
-
-          
-
-        
-        </Portal>
+  </Modal>
+</Portal>
 
         
       </View>
@@ -1316,7 +1444,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   listContainer: {
-    flex: 1,
+    maxHeight: 350,        // Más alto para móviles
+    width: '100%',  
   },
   userCard: {
     flexDirection: 'row',
@@ -1374,10 +1503,11 @@ modalContainer: {
 modalContent: {
   backgroundColor: 'white',
   borderRadius: 12,
-  padding: 24,
-  alignItems: 'center',
-  justifyContent: 'center',
-  minWidth: 250,
+  padding: 20,
+  maxHeight: '90%',
+  width: '100%',         // Ocupa todo el ancho posible
+  minWidth: 280,         // Un mínimo para móviles pequeños
+  alignSelf: 'center',
 },
 // ...existing code...
   modalIcon: {
@@ -1727,20 +1857,36 @@ successModalButtonText: {
     backgroundColor: colors.error,
     marginLeft: 5,
   },
-  cardSelector: {
+  // ...existing code...
+cardPickerModalContent: {
+  backgroundColor: 'white',
+  borderRadius: 12,
+  padding: 20,
+  maxHeight: '80%',
+  width: '90%',
+  minWidth: 280,
+  alignSelf: 'center',
+  justifyContent: 'flex-start',
+  maxHeight: '80%',  
+},
+// ...existing code...
+cardSelector: {
   justifyContent: 'center',
-  paddingVertical: 15,
+  alignItems: 'flex-start', // Para que el texto quede alineado a la izquierda
+  paddingVertical: 15,      // Más alto para el dedo
+  paddingHorizontal: 12,    // Más espacio a los lados
+  minHeight: 48,            // Altura mínima tipo botón
+  borderWidth: 1,
+  borderColor: '#ddd',
+  borderRadius: 8,
+  backgroundColor: '#fff',
+  width: '100%',            // Ocupa todo el ancho del contenedor
+  marginTop: 4,
 },
 modalOverlay: {
   flex: 1,
   justifyContent: 'center',
   padding: 20,
-},
-modalContent: {
-  backgroundColor: 'white',
-  borderRadius: 10,
-  padding: 20,
-  maxHeight: '80%',
 },
 modalTitle: {
   fontSize: 18,
@@ -1749,12 +1895,14 @@ modalTitle: {
   textAlign: 'center',
 },
 listContainer: {
-  maxHeight: 300, // Altura máxima para la lista
+  maxHeight: 350, // Altura máxima para la lista
+  width: '100%',   // Ocupa todo el ancho del contenedor
 },
 cardItem: {
-  padding: 15,
+  padding: 18,           // Más espacio para el dedo
   borderBottomWidth: 1,
   borderBottomColor: '#eee',
+  width: '100%',
 },
 cardText: {
   fontSize: 16,

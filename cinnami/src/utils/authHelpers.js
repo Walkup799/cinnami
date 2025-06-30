@@ -2,6 +2,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from './constants';
 
+//refresh token
+
 export const handleTokenRefresh = async (showError) => {
   try {
     const refreshToken = await AsyncStorage.getItem('refreshToken');
