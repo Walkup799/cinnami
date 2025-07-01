@@ -19,44 +19,63 @@ const DoorStatusScreen = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedDoor, setSelectedDoor] = useState(null);
   const [doors, setDoors] = useState([
-    { id: '1', name: 'Puerta Norte', cardId: 'A12345', status: 'Abierta' },
-    { id: '2', name: 'Puerta Principal', cardId: 'B23456', status: 'Cerrada' },
-    { id: '3', name: 'Puerta Este', cardId: 'C34567', status: 'Abierta' },
+    {
+      id: '1',
+      name: 'Puerta Norte',
+      cardId: 'A12345',
+      status: 'Abierta',
+      date: '01 Jul 2025',
+      time: '08:30 AM',
+    },
+    {
+      id: '2',
+      name: 'Puerta Principal',
+      cardId: 'B23456',
+      status: 'Cerrada',
+      date: '30 Jun 2025',
+      time: '03:15 PM',
+    },
+    {
+      id: '3',
+      name: 'Puerta Este',
+      cardId: 'C34567',
+      status: 'Abierta',
+      date: '01 Jul 2025',
+      time: '09:45 AM',
+    },
   ]);
   const [newDoorName, setNewDoorName] = useState('');
 
-  const handleViewDetails = door => {
+  const handleViewDetails = (door) => {
     setSelectedDoor(door);
     setModalVisible(true);
   };
 
-  const handleEditName = door => {
+  const handleEditName = (door) => {
     setSelectedDoor(door);
     setNewDoorName(door.name);
     setEditModalVisible(true);
   };
 
   const saveNewName = () => {
-    setDoors(prev =>
-      prev.map(d =>
-        d.id === selectedDoor.id ? { ...d, name: newDoorName } : d,
-      ),
+    setDoors((prev) =>
+      prev.map((d) => (d.id === selectedDoor.id ? { ...d, name: newDoorName } : d))
     );
-    setSelectedDoor(prev => ({ ...prev, name: newDoorName }));
+    setSelectedDoor((prev) => ({ ...prev, name: newDoorName }));
     setEditModalVisible(false);
   };
 
-  const changeStatus = newStatus => {
-    setDoors(prev =>
-      prev.map(d =>
-        d.id === selectedDoor.id ? { ...d, status: newStatus } : d,
-      ),
+  const changeStatus = (newStatus) => {
+    setDoors((prev) =>
+      prev.map((d) => (d.id === selectedDoor.id ? { ...d, status: newStatus } : d))
     );
-    setSelectedDoor(prev => ({ ...prev, status: newStatus }));
+    setSelectedDoor((prev) => ({ ...prev, status: newStatus }));
   };
 
-  const abrirPuerta = () => selectedDoor.status !== 'Abierta' && changeStatus('Abierta');
-  const cerrarPuerta = () => selectedDoor.status !== 'Cerrada' && changeStatus('Cerrada');
+  const abrirPuerta = () =>
+    selectedDoor.status !== 'Abierta' && changeStatus('Abierta');
+  const cerrarPuerta = () =>
+    selectedDoor.status !== 'Cerrada' && changeStatus('Cerrada');
 
   const renderDoorItem = ({ item }) => (
     <View style={styles.card}>
@@ -64,11 +83,14 @@ const DoorStatusScreen = () => {
         <View>
           <Text style={styles.cardTitle}>{item.name}</Text>
           <Text style={styles.cardStatus}>ID Tarjeta: {item.cardId}</Text>
+          <Text style={styles.cardStatus}>Fecha: {item.date}</Text>
+          <Text style={styles.cardStatus}>Hora: {item.time}</Text>
           <Text
             style={[
               styles.cardStatus,
               { color: item.status === 'Abierta' ? colors.success : colors.danger },
-            ]}>
+            ]}
+          >
             Estado: {item.status}
           </Text>
         </View>
@@ -76,7 +98,10 @@ const DoorStatusScreen = () => {
           <TouchableOpacity onPress={() => handleViewDetails(item)}>
             <Icon name="eye-outline" size={24} color={colors.canela} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleEditName(item)} style={{ marginLeft: 10 }}>
+          <TouchableOpacity
+            onPress={() => handleEditName(item)}
+            style={{ marginLeft: 10 }}
+          >
             <Icon name="pencil" size={24} color={colors.canela} />
           </TouchableOpacity>
         </View>
@@ -91,7 +116,7 @@ const DoorStatusScreen = () => {
         <Text style={styles.sectionTitle}>Puertas abiertas recientemente</Text>
         <FlatList
           data={doors}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           renderItem={renderDoorItem}
           contentContainerStyle={{ paddingBottom: 30 }}
         />
@@ -102,12 +127,14 @@ const DoorStatusScreen = () => {
         visible={modalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setModalVisible(false)}>
+        onRequestClose={() => setModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <TouchableOpacity
               style={styles.modalCloseIconLeft}
-              onPress={() => setModalVisible(false)}>
+              onPress={() => setModalVisible(false)}
+            >
               <Icon name="close" size={24} color={colors.textLight} />
             </TouchableOpacity>
             {selectedDoor && (
@@ -128,6 +155,26 @@ const DoorStatusScreen = () => {
                 </View>
                 <View style={styles.userDetailRow}>
                   <Icon
+                    name="calendar"
+                    size={20}
+                    color={colors.textLight}
+                    style={styles.userDetailIcon}
+                  />
+                  <Text style={styles.userDetailLabel}>Fecha:</Text>
+                  <Text style={styles.userDetailValue}>{selectedDoor.date}</Text>
+                </View>
+                <View style={styles.userDetailRow}>
+                  <Icon
+                    name="clock-outline"
+                    size={20}
+                    color={colors.textLight}
+                    style={styles.userDetailIcon}
+                  />
+                  <Text style={styles.userDetailLabel}>Hora:</Text>
+                  <Text style={styles.userDetailValue}>{selectedDoor.time}</Text>
+                </View>
+                <View style={styles.userDetailRow}>
+                  <Icon
                     name="door"
                     size={20}
                     color={colors.textLight}
@@ -139,23 +186,34 @@ const DoorStatusScreen = () => {
                       styles.userDetailValue,
                       {
                         color:
-                          selectedDoor.status === 'Abierta' ? colors.success : colors.danger,
+                          selectedDoor.status === 'Abierta'
+                            ? colors.success
+                            : colors.danger,
                       },
-                    ]}>
+                    ]}
+                  >
                     {selectedDoor.status}
                   </Text>
                 </View>
                 <View style={styles.modalButtonRow}>
                   <TouchableOpacity
-                    style={[styles.modalButton, selectedDoor.status === 'Abierta' && styles.disabledButton]}
+                    style={[
+                      styles.modalButton,
+                      selectedDoor.status === 'Abierta' && styles.disabledButton,
+                    ]}
                     onPress={abrirPuerta}
-                    disabled={selectedDoor.status === 'Abierta'}>
+                    disabled={selectedDoor.status === 'Abierta'}
+                  >
                     <Text style={styles.modalButtonText}>Abrir Puerta</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.modalButton, selectedDoor.status === 'Cerrada' && styles.disabledButton]}
+                    style={[
+                      styles.modalButton,
+                      selectedDoor.status === 'Cerrada' && styles.disabledButton,
+                    ]}
                     onPress={cerrarPuerta}
-                    disabled={selectedDoor.status === 'Cerrada'}>
+                    disabled={selectedDoor.status === 'Cerrada'}
+                  >
                     <Text style={styles.modalButtonText}>Cerrar Puerta</Text>
                   </TouchableOpacity>
                 </View>
