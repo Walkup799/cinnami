@@ -227,6 +227,10 @@ const handleSaveChanges = async () => {
     if (response.ok) {
       // ...actualiza estado local, muestra modal de éxito, etc...
       setEditSuccessModal(true);
+      setEditMode(false);
+      setUserModalVisible(false); 
+      await loadUsers();
+      await loadAllCards();
     } else {
       showError(data.message || 'Error al actualizar usuario');
     }
@@ -1124,7 +1128,12 @@ const resetForm = () => {
               </Text>
               <TouchableOpacity
                 style={styles.editSuccessButton}
-                onPress={() => setEditSuccessModal(false)}
+                onPress={async () => {
+                  setEditSuccessModal(false);
+                  setUserModalVisible(false); // Cierra el modal de usuario
+                  await loadUsers();
+                  await loadAllCards();
+                }}
               >
                 <Text style={styles.editSuccessButtonText}>Aceptar</Text>
               </TouchableOpacity>

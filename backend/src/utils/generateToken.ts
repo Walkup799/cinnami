@@ -5,7 +5,7 @@ export const generateAccessToken = (userId: string): string => {
     return jwt.sign(
         { userId },
         process.env.JWT_SECRET || 'cinnami_secret',
-        { expiresIn: '15m' }
+        { expiresIn: '15d' }
     );
 };
 
