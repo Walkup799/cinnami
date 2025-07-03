@@ -419,13 +419,27 @@ const handleDeleteConfirm = async () => {
               </Text>
               
               {card.createdAt && (
-                <Text style={styles.cardDate}>
+                <><Text style={styles.cardDate}>
                   Creada: {new Date(card.createdAt).toLocaleDateString('es-ES', {
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric'
                   })}
-                </Text>
+                </Text><View style={styles.assignedBox}>
+                    {card.assignedTo ? (
+                      <>
+                        <FontAwesome5 name="user" size={16} color={colors.canela} style={styles.userIcon} />
+                        <Text style={styles.assignedText}>
+                          {card.assignedTo.firstName} {card.assignedTo.lastName}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <FontAwesome5 name="user-slash" size={16} color={colors.textLight} style={styles.userIcon} />
+                        <Text style={styles.availableText}>Disponible</Text>
+                      </>
+                    )}
+                  </View></>
               )}
             </View>
             
@@ -917,6 +931,29 @@ cancelButtonText: {
 deleteButtonText: {
   color: colors.white,
   fontWeight: 'bold',
+},
+assignedBox: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#f7f2ed',
+  borderRadius: 8,
+  paddingVertical: 6,
+  paddingHorizontal: 12,
+  marginTop: 6,
+  alignSelf: 'flex-start',
+},
+userIcon: {
+  marginRight: 8,
+},
+assignedText: {
+  fontWeight: 'bold',
+  color: colors.canela,
+  fontSize: 15,
+},
+availableText: {
+  fontWeight: 'bold',
+  color: colors.textLight,
+  fontSize: 15,
 },
 });
 

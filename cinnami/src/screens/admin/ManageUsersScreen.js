@@ -242,8 +242,7 @@ const handleSaveChanges = async () => {
     if (response.ok) {
       // ...actualiza estado local, muestra modal de éxito, etc...
       setEditSuccessModal(true);
-      setEditMode(false);
-      setUserModalVisible(false); 
+      setEditMode(false); 
       await loadUsers();
       await loadAllCards();
     } else {
@@ -540,6 +539,7 @@ const loadUsers = async () => {
 
        // Éxito
     setModalVisible(true);
+    setShowForm(false);
     resetForm();
     loadUsers();
     loadAvailableCards();
@@ -1175,25 +1175,26 @@ const resetForm = () => {
             
             <View style={styles.actionButtonsContainer}>
               <TouchableOpacity
-                style={[styles.confirmModalButtonText, styles.modalCancelButton]}
+                style={[styles.confirmButton, styles.cancelButton]}
                 onPress={() => setConfirmModalVisible(false)}
                 disabled={isLoading}
               >
-                <Text style={styles.confirmModalButtonText}>Cancelar</Text>
+                <Text style={styles.confirmButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.confirmModalButtonText, styles.modalDisableButton]}
+                style={[styles.confirmButton, styles.disableButton]}
                 onPress={disableUser}
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <Text style={styles.confirmModalButtonText}>Deshabilitar</Text>
+                  <Text style={styles.confirmButtonText}>Deshabilitar</Text>
                 )}
               </TouchableOpacity>
             </View>
+
           </View>
          </Modal>
 
@@ -1783,6 +1784,15 @@ confirmModalTitle: {
   fontWeight: 'bold',
   color: colors.text,
   marginLeft: 10,
+},
+confirmButton: {
+  flex: 1,
+  paddingVertical: 12,
+  marginHorizontal: 6,
+  borderRadius: 8,
+  alignItems: 'center',
+  justifyContent: 'center',
+  elevation: 2,
 },
 
 cancelButton: {
