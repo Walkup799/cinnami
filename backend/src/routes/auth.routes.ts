@@ -9,7 +9,7 @@ import {
 import { verifyToken, isAdmin, isSelfOrAdmin } from "../middlewares/auth"; // Nuevo middleware
 
 import { updateUser, disableUser, enableUser, changePassword, updateUserCardId } from "../controllers/user.controller";
-import { assignCard, createCard, deleteCard, disableCard, enableCard, getAllCards, getAvailableCards, unassignCard } from "../controllers/tarjet.controller";
+import { assignCard, createCard, deleteCard, disableCard, enableCard, getAllCards, getAvailableCards, unassignCard, releaseUserCard } from "../controllers/tarjet.controller";
 
 const router = Router();
 
@@ -40,5 +40,6 @@ router.get('/cards/available', getAvailableCards); // Obtener tarjetas disponibl
 router.put('/cards/:id/assign', assignCard); // Asignar tarjeta a un usuario
 router.patch('/users/:id/card', updateUserCardId); // Actualizar cardId del usuario
 router.put('/cards/:id/unassign', unassignCard); // Desasignar tarjeta de un usuario
+router.patch('/users/:id/release-card', releaseUserCard);
 
 export default router;

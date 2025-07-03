@@ -125,6 +125,19 @@ const disableUser = async () => {
   
   try {
     const token = await AsyncStorage.getItem('userToken');
+    const prevCard = allCards.find(card => card.uid === selectedUser.cardId);
+    const prevCardId = prevCard ? prevCard._id : null;
+    if (prevCardId) {
+      await fetch(`${API_BASE_URL}/cards/${prevCardId}/unassign`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({}),
+      });
+    }
+    //deshabilitar usuario
     const response = await fetch(`${API_BASE_URL}/${selectedUser._id}/disable`, {
       method: 'PATCH',
       headers: { 
@@ -144,6 +157,8 @@ const disableUser = async () => {
       setFilteredUsers(updatedUsers);
       setDisableSuccessModal(true); // Mostrar modal de éxito
       setUserModalVisible(false);
+      await loadAllCards(); // Refresca tarjetas
+      await loadUsers(); // Refresca usuarios
     } else {
       const data = await response.json();
       showError(data.message || 'Error al deshabilitar usuario');

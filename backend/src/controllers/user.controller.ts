@@ -6,7 +6,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import dayjs from "dayjs";
 import { Types } from 'mongoose';
-
+import { Card } from "../models/Card";
 
 
 // EDITAR USUARIO (sin cambiar contraseña)
@@ -122,6 +122,19 @@ export const disableUser = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Usuario no encontrado" });
         }
 
+        // Si el usuario tiene tarjeta, libera la tarjeta y elimina el campo cardId
+        if (user.cardId) {
+            // Libera la tarjeta en la colección de tarjetas
+            const card = await Card.findOne({ uid: user.cardId }); // Ajusta el import si es necesario
+            
+            if (card) {
+                card.assignedTo = undefined;
+                await card.save();
+            }
+            // Elimina el campo cardId del usuario usando $unset
+            await User.updateOne({ _id: id }, { $unset: { cardId: "" } });
+        }
+
         // Cambiar el status a false
         const disabledUser = await User.findByIdAndUpdate(
             id,
@@ -142,7 +155,6 @@ export const disableUser = async (req: Request, res: Response) => {
         });
     }
 };
-
 
 
 

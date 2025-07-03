@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,13 @@ import {
   Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const AdminHomeScreen = () => {
+  
+  
+ 
   const peopleCount = 1245;
   const doorStatus = 'Abierta';
 

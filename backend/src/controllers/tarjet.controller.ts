@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Card } from '../models/Card'; // Ajusta la ruta según tu estructura
 import { Types } from 'mongoose';
+import { User } from '../models/User';
 
 //Crear nueva tarjeta (solo UID)
 export const createCard = async (req: Request, res: Response) => {
@@ -354,5 +355,29 @@ export const unassignCard = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error ocurrido en unassignCard:', error);
     res.status(500).json({ message: 'Error al desasignar tarjeta', error });
+  }
+};
+
+// Desasignar tarjeta desde el usuario
+export const releaseUserCard = async (req: Request, res: Response) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    if (user.cardId) {
+      // Libera la tarjeta en la colección de tarjetas
+      const card = await Card.findOne({ uid: user.cardId });
+      if (card) {
+        card.assignedTo = null;
+        await card.save();
+      }
+      // Libera la tarjeta en el usuario (sin validación de Mongoose)
+      await User.updateOne({ _id: userId }, { $set: { cardId: null } });
+    }
+
+    res.status(200).json({ message: 'Tarjeta liberada correctamente' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al liberar tarjeta', error });
   }
 };

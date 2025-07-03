@@ -49,8 +49,9 @@ const userSchema = new Schema<IUser>(
     },
     cardId: { 
         type: String, 
-        required: true, 
-        unique: true 
+        required: false, 
+        unique: true,
+        sparse: true 
     },
     status: { 
         type: Boolean, 
