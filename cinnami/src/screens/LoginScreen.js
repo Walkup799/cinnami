@@ -80,7 +80,11 @@ const LoginScreen = ({ navigation, setUserRole }) => {
             username: data.user.username,
             email: data.user.email,
             role: data.user.role,
-            status: data.user.status
+            status: data.user.status,
+            firstName: data.user.firstName,   
+            lastName: data.user.lastName,     
+            cardId: data.user.cardId,         
+            lastAccess: data.user.lastAccess 
           })]
         ]);
 

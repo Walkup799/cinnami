@@ -26,7 +26,7 @@ router.get('/all-users', verifyToken, getAllUsers);
 router.put('/:id/update', updateUser); // Editar usuario (sin contraseña)
 router.patch('/:id/disable', disableUser); // Deshabilitar usuario
 router.patch('/:id/enable', isAdmin, enableUser);  // Habilitar usuario (opcional)
-router.post('/:id/change-password', isSelfOrAdmin, changePassword);   // Cambio de contraseña
+router.post('/:id/change-password', changePassword);   // Cambio de contraseña
 
 
 //tarjetas 
