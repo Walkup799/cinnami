@@ -69,46 +69,33 @@ export const updateUser = async (req: Request, res: Response) => {
 
 // CAMBIO DE CONTRASEÑA (SOLO PARA EL PROPIO USUARIO)
 export const changePassword = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        const { currentPassword, newPassword } = req.body;
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
 
-        // Verificar que el usuario que hace la petición es el mismo
-        if (!req.user || req.user._id.toString() !== id) {
-            return res.status(403).json({ 
-                message: "No tienes permiso para cambiar esta contraseña" 
-            });
-        }
-
-        // Buscar el usuario
-        const user = await User.findById(id);
-        if (!user) {
-            return res.status(404).json({ message: "Usuario no encontrado" });
-        }
-
-        // Verificar la contraseña actual
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) {
-            return res.status(401).json({ message: "Contraseña actual incorrecta" });
-        }
-
-        // Encriptar nueva contraseña
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-
-        // Actualizar contraseña
-        await User.findByIdAndUpdate(id, { $set: { password: hashedPassword } });
-
-        return res.status(200).json({ message: "Contraseña actualizada correctamente" });
-
-    } catch (error) {
-        console.error("Error en changePassword: ", error);
-        return res.status(500).json({ 
-            message: "Error al cambiar contraseña",
-            error: error.message 
-        });
+    // Buscar el usuario
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
     }
+
+    // Encriptar nueva contraseña
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar la contraseña
+    await User.findByIdAndUpdate(id, { $set: { password: hashedPassword } });
+
+    return res.status(200).json({ message: "Contraseña actualizada correctamente" });
+
+  } catch (error) {
+    console.error("Error en changePassword:", error);
+    return res.status(500).json({
+      message: "Error al cambiar la contraseña",
+      error: error.message
+    });
+  }
 };
+
 
 
 // DESHABILITAR USUARIO (cambiar status a false)

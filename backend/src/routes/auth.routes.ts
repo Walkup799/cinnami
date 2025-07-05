@@ -26,7 +26,7 @@ router.get('/all-users', verifyToken, getAllUsers);
 router.put('/:id/update', updateUser); // Editar usuario (sin contraseña)
 router.patch('/:id/disable', disableUser); // Deshabilitar usuario
 router.patch('/:id/enable', isAdmin, enableUser);  // Habilitar usuario (opcional)
-router.post('/:id/change-password', changePassword);   // Cambio de contraseña
+router.put('/:id/change-password', changePassword);   // Cambio de contraseña
 
 
 //tarjetas 
@@ -40,6 +40,6 @@ router.get('/cards/available', getAvailableCards); // Obtener tarjetas disponibl
 router.put('/cards/:id/assign', assignCard); // Asignar tarjeta a un usuario
 router.patch('/users/:id/card', updateUserCardId); // Actualizar cardId del usuario
 router.put('/cards/:id/unassign', unassignCard); // Desasignar tarjeta de un usuario
-router.patch('/users/:id/release-card', releaseUserCard);
+router.patch('/users/:id/release-card', releaseUserCard); // Liberar tarjeta de un usuario
 
 export default router;

@@ -28,7 +28,7 @@ const AdminHomeScreen = () => {
     username: '',
     email: '',
     password: '',
-    confirmPassword: '',
+    confirmPassword: '',    // confirmar nueva contraseña 
   });
   const [cardModalVisible, setCardModalVisible] = useState(false);
   const [availableCards, setAvailableCards] = useState([]);
@@ -37,11 +37,28 @@ const AdminHomeScreen = () => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
+  const [allCards, setAllCards] = useState([]);
 
-const [authError, setAuthError] = useState({
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+
+  const [authError, setAuthError] = useState({
     visible: false,
     message: ''
   });
+
+  // Estados del formulario
+    const [formData, setFormData] = useState({
+      username: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      role: 'docente',
+      firstName: '',
+      lastName: '',
+      cardId: ''
+    });
 
   useEffect(() => {
     const loadUser = async () => {
@@ -60,6 +77,25 @@ const [authError, setAuthError] = useState({
       message: message || 'Tu sesión ha expirado. Por favor ingresa nuevamente.'
     });
   };
+
+   // funcion global para obtener TODAS las tarjetas
+    const loadAllCards = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await fetch(`${API_BASE_URL}/cards`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Error al obtener todas las tarjetas');
+      const data = await response.json();
+      setAllCards(data.cards || []);
+    } catch (error) {
+      console.error('Error al cargar todas las tarjetas:', error);
+    }
+  };
+
+  useEffect(() => {
+  loadAllCards();
+}, []);
 
 
   // Estados para alertas
@@ -91,29 +127,12 @@ const [authError, setAuthError] = useState({
 
 //EDITAR PERFIL PROPIO
  const handleSaveProfile = async () => {
-  let isValid = true;
-  const fieldsToValidate = ['username', 'email', 'firstName', 'lastName', 'cardId'];
 
-  // Validar campos del perfil
-  fieldsToValidate.forEach(field => {
-    if (!validateField(field, profileForm[field])) {
-      isValid = false;
-    }
-  });
+  console.log('handleSaveProfile llamado');
+  console.log('Valores actuales:', profileForm);
+  console.log('Errores actuales:', errors);
 
-  // Validación de contraseña (opcional)
-  if (profileForm.password) {
-    if (profileForm.password !== profileForm.confirmPassword) {
-      showError('Las contraseñas no coinciden');
-      isValid = false;
-    } else if (!profileForm.currentPassword) {
-      showError('Debes ingresar tu contraseña actual para cambiarla');
-      isValid = false;
-    } else if (profileForm.password.length < 6) {
-      showError('La nueva contraseña debe tener al menos 6 caracteres');
-      isValid = false;
-    }
-  }
+  const isValid = validateForm(); 
 
   if (!isValid) {
     showError('Por favor corrige los errores del formulario');
@@ -141,7 +160,7 @@ const [authError, setAuthError] = useState({
     }
 
     // --- Paso 2: Actualizar datos del usuario (sin password) ---
-    const updateResponse = await fetch(`${API_BASE_URL}/users/${userId}/update`, {
+    const updateResponse = await fetch(`${API_BASE_URL}/${userId}/update`, {
       method: 'PUT',
       headers: { 
         'Content-Type': 'application/json',
@@ -159,8 +178,9 @@ const [authError, setAuthError] = useState({
     const updateData = await updateResponse.json();
 
     // --- Paso 3: Cambiar contraseña si se solicitó ---
-    if (profileForm.password && profileForm.currentPassword) {
-      const passRes = await fetch(`${API_BASE_URL}/users/${userId}/change-password`, {
+    if (profileForm.password) {
+      console.log('Cambiando contraseña...');
+      const passRes = await fetch(`${API_BASE_URL}/${userId}/change-password`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -203,6 +223,7 @@ const [authError, setAuthError] = useState({
 
   } catch (error) {
     showError(error.message || 'Error al guardar los cambios');
+    console.error('Error al guardar perfil:', error);
   } finally {
     setIsLoading(false);
   }
@@ -224,11 +245,9 @@ const validateField = (name, value) => {
       if (!value) error = 'Contraseña es requerida';
       else if (value.length < 6) error = 'Mínimo 6 caracteres';
       break;
+
     case 'confirmPassword':
-      if (value !== formData.password) error = 'Las contraseñas no coinciden';
-      break;
-    case 'currentPassword':
-      if (formData.password && !value) error = 'Debes ingresar tu contraseña actual';
+      if (value !== profileForm.password) error = 'Las contraseñas no coinciden';
       break;
     case 'firstName':
     case 'lastName':
@@ -260,24 +279,24 @@ const validateField = (name, value) => {
   
 // validar formulario
   const validateForm = () => {
-  let isValid = true;
-
-  // Campos siempre requeridos
   const fieldsToValidate = ['username', 'email', 'firstName', 'lastName', 'cardId'];
 
-  // Validar contraseñas solo si se quiere cambiar
-  if (formData.password) {
-    fieldsToValidate.push('password', 'confirmPassword', 'currentPassword');
+  const allFieldsValid = fieldsToValidate.every(field => 
+    validateField(field, profileForm[field])
+  );
+
+  let passwordsValid = true;
+  if (profileForm.password || profileForm.confirmPassword) {
+    passwordsValid = 
+      validateField('password', profileForm.password) &&
+      validateField('confirmPassword', profileForm.confirmPassword);
   }
 
-  fieldsToValidate.forEach(field => {
-    if (!validateField(field, formData[field])) {
-      isValid = false;
-    }
-  });
-
-  return isValid;
+  return allFieldsValid && passwordsValid;
 };
+
+
+
 
 
 //tarjetas disponibles
@@ -392,6 +411,7 @@ const fetchAvailableCards = async () => {
 }, [changePasswordMode]);
 
 
+
   return (
   <Provider>
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -463,7 +483,7 @@ const fetchAvailableCards = async () => {
       />
     </ScrollView>
 
-    {/* Modal de detalle de usuario (nativo, si así lo prefieres) */}
+    {/* Modal de detalle de usuario  */}
     <Modal
       animationType="slide"
       transparent={true}
@@ -664,13 +684,14 @@ const fetchAvailableCards = async () => {
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
-                  style={{ marginVertical: 10 }}
-                  onPress={() => setChangePasswordMode(prev => !prev)}
-                >
-                  <Text style={{ color: colors.primary }}>
-                    {changePasswordMode ? 'Cancelar cambio de contraseña' : 'Cambiar contraseña'}
-                  </Text>
-                </TouchableOpacity>
+                style={styles.togglePasswordButton}
+                onPress={() => setChangePasswordMode(prev => !prev)}
+              >
+                <Text style={styles.togglePasswordText}>
+                  {changePasswordMode ? 'Cancelar cambio de contraseña' : 'Cambiar contraseña'}
+                </Text>
+              </TouchableOpacity>
+
                {changePasswordMode && (
                     <>
                       
@@ -682,18 +703,27 @@ const fetchAvailableCards = async () => {
                           style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee' }]}
                           value={profileForm.password}
                           onChangeText={text => {
-                            setProfileForm(prev => ({ ...prev, password: text }));
-                            validateField('password', text);
+                            setProfileForm(prev => {
+                              const updatedForm = { ...prev, password: text };
+                              validateField('password', text);
+                              validateField('confirmPassword', updatedForm.confirmPassword); // Revalida confirmación
+                              return updatedForm;
+                            });
                           }}
-                          secureTextEntry
+
+                          secureTextEntry={!showPassword}
                           placeholder="Nueva contraseña"
                         />
-                        {errors.password && (
+                        <TouchableOpacity onPress={() => setShowPassword(prev => !prev)}>
+                          <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} color="#888" />
+                        </TouchableOpacity>
+                        
+                      </View>
+                      {errors.password && (
                           <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
                             {errors.password}
                           </Text>
                         )}
-                      </View>
 
                       <View style={styles.userDetailRow}>
                         <Icon name="lock-check" size={20} color={colors.textLight} style={styles.userDetailIcon} />
@@ -705,15 +735,20 @@ const fetchAvailableCards = async () => {
                             setProfileForm(prev => ({ ...prev, confirmPassword: text }));
                             validateField('confirmPassword', text);
                           }}
-                          secureTextEntry
+
+                          secureTextEntry={!showConfirmPassword}
                           placeholder="Confirmar contraseña"
                         />
-                        {errors.confirmPassword && (
+                        <TouchableOpacity onPress={() => setShowConfirmPassword(prev => !prev)}>
+                          <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#888" />
+                        </TouchableOpacity>
+                        
+                      </View>
+                      {errors.confirmPassword && (
                           <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
                             {errors.confirmPassword}
                           </Text>
                         )}
-                      </View>
                     </>
                   )}
 
@@ -785,6 +820,15 @@ const fetchAvailableCards = async () => {
         </View>
       </Modal>
     </Portal>
+    <CustomAlert
+        visible={alertData.visible}
+        title={alertData.title}
+        message={alertData.message}
+        alertType={alertData.type}
+        onClose={hideAlert}
+      />
+
+   
   </Provider>
 );
 };
@@ -1031,7 +1075,7 @@ cardPickerModalContent: {
   borderRadius: 12,
   padding: 50,
   maxHeight: '80%',
-  width: '90%',
+  width: '50%',
   minWidth: 280,
   alignSelf: 'center',
   justifyContent: 'flex-start',
@@ -1041,9 +1085,31 @@ cardPickerModalContent: {
     flex: 1,
     justifyContent: 'center',
     padding: 20,
+    paddingBottom: 2,
   },
 // ...existing styles...
 // ...existing styles...
+togglePasswordButton: {
+  alignSelf: 'flex-start',
+  marginTop: 10,
+  marginBottom: 10,
+  marginLeft: 30,
+},
+
+togglePasswordText: {
+  color: colors.primary,
+  fontSize: 14,
+  fontWeight: '600',
+  textDecorationLine: 'underline',
+  opacity: 0.85,
+},
+cardItem: {
+  padding: 18,           // Más espacio para el dedo
+  borderBottomWidth: 1,
+  borderBottomColor: '#eee',
+  width: '100%',
+},
+
 });
 
 
