@@ -12,6 +12,8 @@ import CustomAlert from '../../utils/customAlert';
 
 
 const ManageCardsScreen = () => {
+
+  //estados
   const [showForm, setShowForm] = useState(false);
   const [uid, setUid] = useState('');
   const [searchQuery, setSearchQuery] = useState('');

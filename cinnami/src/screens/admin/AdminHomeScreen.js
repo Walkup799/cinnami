@@ -14,7 +14,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../../utils/constants';
 import { Portal, Modal, Provider} from 'react-native-paper';
 import CustomAlert from '../../utils/customAlert';
-import AuthErrorModal from '../../utils/AuthErrorModal';
 
 const AdminHomeScreen = () => {
 
