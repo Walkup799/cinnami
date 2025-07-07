@@ -89,6 +89,11 @@ const LoginScreen = ({ navigation, setUserRole }) => {
         ]);
 
         setUserRole(data.user.role);
+         await AsyncStorage.setItem('cardId', data.user.cardId); 
+         console.log('Datos que se están guardando:', {
+  cardId: data.user.cardId,
+  userData: data.user
+});
       } else {
         // Manejo de errores
         if (response.status === 403 && data.code === 'ACCOUNT_DISABLED') {

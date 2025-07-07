@@ -381,3 +381,26 @@ export const releaseUserCard = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error al liberar tarjeta', error });
   }
 };
+
+// GET /api/cards/by-uid/:uid
+export const getCardByUid = async (req: Request, res: Response) => {
+  try {
+    const { uid } = req.params;
+    
+    const card = await Card.findOne({ uid }).populate('assignedTo', 'username');
+    
+    if (!card) {
+      return res.status(404).json({
+        message: 'Tarjeta no encontrada'
+      });
+    }
+
+    res.status(200).json({
+      message: 'Tarjeta encontrada',
+      card: card
+    });
+  } catch (error) {
+    console.error('Error al obtener tarjeta por UID:', error);
+    res.status(500).json({ message: 'Error al obtener tarjeta', error });
+  }
+};

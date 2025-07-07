@@ -348,7 +348,7 @@ const validateField = (name, value) => {
               </Text>
             </View>
             <Text style={styles.profileMeta}>
-              Último acceso: {userProfile?.lastAccess || '-'}
+              Último acceso: {userProfile?.lastLogin || '-'}
             </Text>
           </View>
           <TouchableOpacity
@@ -417,13 +417,14 @@ const validateField = (name, value) => {
         )}
       </ScrollView>
 
-      <Modal
+      <Portal>
+        <Modal
         animationType="slide"
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.modalOverlayAccess}>
           <View style={styles.modalContent}>
             <TouchableOpacity
               style={styles.modalCloseIconLeft}
@@ -467,6 +468,7 @@ const validateField = (name, value) => {
           </View>
         </View>
       </Modal>
+      </Portal>
        {/* Modal de detalle de usuario  */}
     <Modal
       animationType="slide"
@@ -888,11 +890,11 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     marginTop: 10,
   },
-  modalOverlay: {
+  modalOverlayAccess: {
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-    paddingBottom: 2,
+    paddingBottom: 5,
   },
   modalContent: {
     backgroundColor: colors.white,
@@ -1070,7 +1072,7 @@ cardPickerModalContent: {
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-    paddingBottom: 2,
+    paddingBottom: 30,
   },
 // ...existing styles...
 // ...existing styles...
