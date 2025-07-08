@@ -894,13 +894,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-    paddingBottom: 5,
+    paddingBottom: 100,
   },
   modalContent: {
     backgroundColor: colors.white,
     borderRadius: 12,
     padding: 20,
     maxHeight: '90%',
+    width: '90%', // Asegurar ancho consistente
+    alignSelf: 'center', 
+     marginBottom: 40, // Espacio adicional abajo
   },
   modalCloseIconLeft: {
     position: 'absolute',
@@ -924,20 +927,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 10,
   },
-  userDetailsContainer: { marginTop: 10, width: '100%' },
-  userDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    paddingVertical: 14,
-  },
-  userDetailIcon: { marginRight: 12 },
-  userDetailLabel: {
-    flex: 0.4,
-    fontSize: 14,
-    color: colors.textLight,
-  },
+
   userDetailValue: {
   flex: 1,
   fontSize: 16,
@@ -1072,7 +1062,8 @@ cardPickerModalContent: {
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-    paddingBottom: 30,
+    paddingBottom: 0,
+    marginBottom: 2
   },
 // ...existing styles...
 // ...existing styles...
@@ -1096,6 +1087,40 @@ cardItem: {
   borderBottomColor: '#eee',
   width: '100%',
 },
+userModalHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+    width: '100%', // Ocupar todo el ancho disponible
+    paddingHorizontal: 5, // Padding para evitar que toque los bordes
+  },
+userModalEmail: { fontSize: 14, color: colors.textLight },
+  userModalRole: {
+    backgroundColor: '#A8C7F7', // azul pastel
+    borderRadius: 20,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    marginTop: 6,
+  },
+  userRoleAdmin: {
+    backgroundColor: '#A8C7F7', // azul pastel
+  },
+  userModalRoleText: { color: colors.white, fontSize: 13, fontWeight: 'bold' },
+  userDetailsContainer: { marginTop: 10 },
+  userDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingVertical: 14,
+  },
+  userDetailIcon: {
+    marginRight: 12,
+  },
+  userDetailLabel: {
+    flex: 0.4,
+    fontSize: 13,
+    color: colors.textLight,
+  },
 
 });
 

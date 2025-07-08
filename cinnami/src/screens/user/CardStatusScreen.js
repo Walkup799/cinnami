@@ -23,6 +23,31 @@ const CardStatusScreen = () => {
   const [updating, setUpdating] = useState(false);
   const [temporaryBlockInfo, setTemporaryBlockInfo] = useState(null);
 
+   // Estados para alertas
+        const [alertData, setAlertData] = useState({
+          visible: false,
+          title: '',
+          message: '',
+          type: 'warning'
+        });
+        // Helpers de alerta
+        const showAlert = (title, message, type = 'warning') => {
+          setAlertData({
+            visible: true,
+            title,
+            message,
+            type
+          });
+        };
+      
+        const hideAlert = () => {
+          setAlertData(prev => ({ ...prev, visible: false }));
+        };
+      
+        const showError = (message, title = 'Error') => showAlert(title, message, 'warning');
+        const showSuccess = (message, title = 'Éxito') => showAlert(title, message, 'success');
+    
+
   // Obtener información de la tarjeta al montar el componente
   useEffect(() => {
     fetchCardData();
