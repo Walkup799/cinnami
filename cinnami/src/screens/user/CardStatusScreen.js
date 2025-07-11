@@ -14,6 +14,7 @@ import { globalStyles, colors } from '../../styles/globalStyles';
 import { API_BASE_URL } from '../../utils/constants';
 import CustomAlert from '../../utils/customAlert';
 import { Portal, Modal, Provider} from 'react-native-paper';
+import SuccessAlert from '../../utils/SuccessAlert'; // Asegúrate de que la ruta sea correcta
 
 const CardStatusScreen = () => {
   const [cardData, setCardData] = useState(null);
@@ -22,6 +23,12 @@ const CardStatusScreen = () => {
   const [blockDuration, setBlockDuration] = useState('1');
   const [updating, setUpdating] = useState(false);
   const [temporaryBlockInfo, setTemporaryBlockInfo] = useState(null);
+   const [successAlert, setSuccessAlert] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'success'
+  });
 
    // Estados para alertas
         const [alertData, setAlertData] = useState({
@@ -47,6 +54,22 @@ const CardStatusScreen = () => {
         const showError = (message, title = 'Error') => showAlert(title, message, 'warning');
         const showSuccess = (message, title = 'Éxito') => showAlert(title, message, 'success');
     
+  const showSuccessAlert = (title, message, type = 'success') => {
+    setSuccessAlert({
+      visible: true,
+      title,
+      message,
+      type
+    });
+  };
+
+  const hideSuccessAlert = () => {
+    setSuccessAlert({
+      ...successAlert,
+      visible: false
+    });
+  };
+
 
   // Obtener información de la tarjeta al montar el componente
   useEffect(() => {
@@ -229,16 +252,28 @@ const CardStatusScreen = () => {
 
         // Mostrar mensaje de éxito
         if (temporaryBlock && cardData.state) {
-          Alert.alert('Éxito', `Tarjeta bloqueada temporalmente por ${blockDuration} hora(s)`);
+          showSuccessAlert(
+          'Éxito',
+          `Tarjeta bloqueada temporalmente por ${blockDuration} hora(s)`,
+          'success'
+        );
         } else {
-          Alert.alert('Éxito', result.message || 'Operación completada');
+          showSuccessAlert(
+          'Éxito',
+          result.message,
+          'success'
+        );
         }
         
         // Resetear el switch temporal
         setTemporaryBlock(false);
       } else {
         const error = await response.json();
-        Alert.alert('Error', error.message || 'Error al actualizar el estado de la tarjeta');
+         showSuccessAlert(
+        'Error',
+        'Error al actualizar el estado de la tarjeta',
+        'error'
+      );
       }
     } catch (error) {
       console.error('Error updating card status:', error);
@@ -248,25 +283,18 @@ const CardStatusScreen = () => {
     }
   };
 
-  const handleDurationPress = (hours) => {
-    Alert.alert(
+   const handleDurationPress = (hours) => {
+    showSuccessAlert(
       'Confirmar bloqueo',
       `¿Está seguro que desea bloquear esta tarjeta por ${hours} hora(s)?`,
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Aceptar',
-          onPress: () => {
-            setBlockDuration(hours);
-            setTemporaryBlock(true);
-            // Ejecutar el bloqueo inmediatamente
-            setTimeout(() => handleBlockCard(), 100);
-          },
-        },
-      ]
+      'confirm',
+      () => {
+        setBlockDuration(hours);
+        setTemporaryBlock(true);
+        // Ejecutar el bloqueo inmediatamente
+        setTimeout(() => handleBlockCard(), 100);
+        hideSuccessAlert();
+      }
     );
   };
 
@@ -369,14 +397,15 @@ const CardStatusScreen = () => {
       <View style={[globalStyles.card, { marginTop: 20 }]}>
         <View style={styles.headerRow}>
           <Text style={globalStyles.subtitle}>Opciones de bloqueo</Text>
-          <TouchableOpacity
-            onPress={() =>
-              Alert.alert(
-                'Información',
-                'El bloqueo temporal desactiva tu tarjeta por unas horas. El permanente es indefinido hasta que lo desbloquees.'
-              )
-            }
-          >
+           <TouchableOpacity
+        onPress={() =>
+          showSuccessAlert(
+            'Información',
+            'El bloqueo temporal desactiva tu tarjeta por unas horas. El permanente es indefinido hasta que lo desbloquees.',
+            'info'
+          )
+        }
+      >
             <Icon name="information-outline" size={22} color={colors.textLight} />
           </TouchableOpacity>
         </View>
@@ -441,6 +470,15 @@ const CardStatusScreen = () => {
             </Text>
           )}
         </TouchableOpacity>
+
+         {/* Componente de alerta personalizada */}
+      <SuccessAlert
+        visible={successAlert.visible}
+        title={successAlert.title}
+        message={successAlert.message}
+        type={successAlert.type}
+        onClose={hideSuccessAlert}
+      />
       </View>
     </View>
   );

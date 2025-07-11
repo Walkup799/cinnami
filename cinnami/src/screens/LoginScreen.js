@@ -19,12 +19,17 @@ const LoginScreen = ({ navigation, setUserRole }) => {
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertData, setAlertData] = useState({ title: '', message: '' });
 
-  const handleLogin = async () => {
+  const clearErrors = () => {
     setIdentifierError('');
     setPasswordError('');
+  };
+
+  const handleLogin = async () => {
+    clearErrors();
 
     let isValid = true;
 
+    // Validaciones básicas
     if (!identifier.trim()) {
       setIdentifierError('Por favor ingrese su correo electrónico o nombre de usuario');
       isValid = false;
@@ -58,9 +63,9 @@ const LoginScreen = ({ navigation, setUserRole }) => {
         // Verificar si el usuario está habilitado
         if (data.user?.status === false) {
           // Limpiar formulario antes de mostrar alerta
-        setIdentifier('');
-        setPassword('');
-        setShowPassword(false);
+          setIdentifier('');
+          setPassword('');
+          setShowPassword(false);
           setAlertData({
             title: 'Cuenta Deshabilitada',
             message: data.message || 'Tu cuenta ha sido deshabilitada. Contacta al administrador.'
@@ -89,43 +94,62 @@ const LoginScreen = ({ navigation, setUserRole }) => {
         ]);
 
         setUserRole(data.user.role);
-         await AsyncStorage.setItem('cardId', data.user.cardId); 
-         console.log('Datos que se están guardando:', {
-  cardId: data.user.cardId,
-  userData: data.user
-});
+        await AsyncStorage.setItem('cardId', data.user.cardId); 
+        console.log('Datos que se están guardando:', {
+          cardId: data.user.cardId,
+          userData: data.user
+        });
       } else {
-        // Manejo de errores
+        // Manejo mejorado de errores de autenticación
         if (response.status === 403 && data.code === 'ACCOUNT_DISABLED') {
           setIdentifier('');
-        setPassword('');
-        setShowPassword(false);
-
+          setPassword('');
+          setShowPassword(false);
           setAlertData({
             title: 'Cuenta Deshabilitada',
             message: data.message || 'Tu cuenta ha sido deshabilitada. Contacta al administrador.'
           });
           setAlertVisible(true);
-        } else if (data.message?.toLowerCase().includes('contraseña')) {
-          setPasswordError('Contraseña incorrecta');
-        } else if (data.message?.toLowerCase().includes('usuario')) {
-          setIdentifierError('Correo electrónico o usuario no registrado');
+        } else if (response.status === 401 || response.status === 400) {
+          // Errores de autenticación - mostrar en los inputs correspondientes
+          const errorMessage = data.message?.toLowerCase() || '';
+          const errorCode = data.code || '';
+          
+          // Priorizar mensajes específicos del servidor
+          if (errorMessage.includes('contraseña') || errorMessage.includes('password') || 
+              errorCode === 'INVALID_PASSWORD') {
+            setPasswordError('Contraseña incorrecta');
+          } else if (errorMessage.includes('usuario') || errorMessage.includes('correo') || 
+                     errorMessage.includes('email') || errorMessage.includes('user') ||
+                     errorCode === 'USER_NOT_FOUND') {
+            setIdentifierError('Correo electrónico o usuario no registrado');
+          } else if (errorMessage.includes('no encontrado') || errorMessage.includes('not found')) {
+            setIdentifierError('Usuario no encontrado');
+          } else if (errorMessage.includes('incorrecta') || errorMessage.includes('incorrect')) {
+            setPasswordError('Contraseña incorrecta');
+          } else {
+            // Si no podemos determinar el error específico, mostrar error genérico
+            // pero solo en el campo de contraseña (más común)
+            setPasswordError('Credenciales inválidas. Verifica tu información');
+          }
         } else {
+          // Otros errores que no son de autenticación
+          console.log('Error del servidor:', data);
           setAlertData({
-            title: 'Error de autenticación',
-            message: data.message || 'Ocurrió un error al iniciar sesión'
+            title: 'Error del servidor',
+            message: data.message || 'Ha ocurrido un error. Intenta nuevamente.'
           });
           setAlertVisible(true);
         }
       }
     } catch (error) {
       setIdentifier('');
-        setPassword('');
-        setShowPassword(false);
+      setPassword('');
+      setShowPassword(false);
       setIsLoading(false);
       setAlertData({
         title: 'Error de conexión',
-        message: 'No se pudo conectar con el servidor'
+        message: 'No se pudo conectar con el servidor. Verifica tu conexión a internet.'
       });
       setAlertVisible(true);
       console.error('ERROR LOGIN:', error);

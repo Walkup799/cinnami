@@ -280,8 +280,8 @@ export const deleteCard = async (req: Request, resp: Response) =>{
   }
 }
 
-// Asignar tarjeta a usuario
-export const assignCard = async (req: Request, res: Response) => {
+// Asignar tarjeta a usuario MOVIL
+export const assignCardMovil = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { userId } = req.body;
@@ -322,6 +322,16 @@ export const assignCard = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error al asignar tarjeta', error });
   }
 };
+
+
+
+
+// Asignar tarjeta a usuario WEB
+
+
+
+
+
 
 //Desasignar tarjeta
 export const unassignCard = async (req: Request, res: Response) => {
@@ -382,7 +392,7 @@ export const releaseUserCard = async (req: Request, res: Response) => {
   }
 };
 
-// GET /api/cards/by-uid/:uid
+// Obtener tarjeta por UID - MÓVIL ÚNICA
 export const getCardByUid = async (req: Request, res: Response) => {
   try {
     const { uid } = req.params;

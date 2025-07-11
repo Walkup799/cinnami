@@ -112,7 +112,7 @@ export const disableUser = async (req: Request, res: Response) => {
         // Si el usuario tiene tarjeta, libera la tarjeta y elimina el campo cardId
         if (user.cardId) {
             // Libera la tarjeta en la colección de tarjetas
-            const card = await Card.findOne({ uid: user.cardId }); // Ajusta el import si es necesario
+            const card = await Card.findOne({ uid: user.cardId }); // Ajusta el import si es necesario //CAMBIO WEB
             
             if (card) {
                 card.assignedTo = undefined;
@@ -179,8 +179,6 @@ export const enableUser = async (req: Request, res: Response) => {
 
 // ACTUALIZAR CARD ID DEL USUARIO
 // Esta función actualiza el cardId de un usuario específico
-// En controllers/users.controller.ts
-// En controllers/users.controller.ts
 export const updateUserCardId = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
