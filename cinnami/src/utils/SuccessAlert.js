@@ -19,7 +19,7 @@ const SuccessAlert = ({
   onClose, 
   onConfirm, 
   type = 'success',
-  confirmText = 'Entendido',
+  confirmText = 'Aceptar',
   cancelText = 'Cancelar' 
 }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;

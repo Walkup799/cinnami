@@ -1469,7 +1469,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   listContainer: {
-    maxHeight: 350,        // Más alto para móviles
+    maxHeight: 800,        // Más alto para móviles
     width: '100%',  
   },
   userCard: {
@@ -1927,10 +1927,6 @@ modalTitle: {
   fontWeight: 'bold',
   marginBottom: 15,
   textAlign: 'center',
-},
-listContainer: {
-  maxHeight: 350, // Altura máxima para la lista
-  width: '100%',   // Ocupa todo el ancho del contenedor
 },
 cardItem: {
   padding: 18,           // Más espacio para el dedo

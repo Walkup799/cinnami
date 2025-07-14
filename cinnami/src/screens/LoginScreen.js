@@ -97,7 +97,8 @@ const LoginScreen = ({ navigation, setUserRole }) => {
         await AsyncStorage.setItem('cardId', data.user.cardId); 
         console.log('Datos que se están guardando:', {
           cardId: data.user.cardId,
-          userData: data.user
+          userData: data.user,
+          userId: data.user.id,
         });
       } else {
         // Manejo mejorado de errores de autenticación
