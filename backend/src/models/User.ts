@@ -15,6 +15,8 @@ export interface IUser extends Document {
   createdAt?: Date;
   updatedAt?: Date;
   lastLogin?: Date;
+  resetPasswordToken?: string; // Token para restablecer contraseña
+  resetPasswordExpires?: Date; // Fecha de expiración del token
 }
 
 // Esquema de Mongoose
@@ -72,6 +74,12 @@ const userSchema = new Schema<IUser>(
     lastLogin: { 
         type: Date 
     },
+    resetPasswordToken: {
+      type: String
+    },
+    resetPasswordExpires: {
+      type: Date
+    }
   },
   {
     timestamps: true, // agrega createdAt y updatedAt automáticamente

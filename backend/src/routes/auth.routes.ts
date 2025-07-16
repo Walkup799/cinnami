@@ -8,7 +8,7 @@ import {
 } from "../controllers/auth.controller";
 import { verifyToken, isAdmin, isSelfOrAdmin } from "../middlewares/auth"; // Nuevo middleware
 
-import { updateUser, disableUser, enableUser, changePassword, updateUserCardId } from "../controllers/user.controller";
+import { updateUser, disableUser, enableUser, changePassword, updateUserCardId, forgotPassword, resetPassword } from "../controllers/user.controller";
 import { assignCard, createCard, deleteCard, disableCard, enableCard, getAllCards, getAvailableCards, unassignCard, releaseUserCard, getCardByUid, assignCardMovil } from "../controllers/tarjet.controller";
 
 const router = Router();
@@ -22,12 +22,14 @@ router.post('/users', createUser); // registro de nuevos usuarios
 router.post('/logout', verifyToken, logout); // cerrar sesión
 router.get('/all-users', verifyToken, getAllUsers);
 
+//usuarios
 
 router.put('/:id/update', updateUser); // Editar usuario (sin contraseña)
 router.patch('/:id/disable', disableUser); // Deshabilitar usuario
 router.patch('/:id/enable', isAdmin, enableUser);  // Habilitar usuario (opcional)
 router.put('/:id/change-password', changePassword);   // Cambio de contraseña
-
+router.post('/forgot-password', forgotPassword); 
+router.post('/reset-password', resetPassword); // Actualizar cardId del usuario
 
 //tarjetas 
 

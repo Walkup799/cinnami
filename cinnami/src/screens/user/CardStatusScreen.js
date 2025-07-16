@@ -387,6 +387,7 @@ const CardStatusScreen = () => {
             <Animated.View style={[styles.card, styles.cardFront, frontAnimatedStyle]}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardBankName}>CINNAMI</Text>
+                
                 <Icon 
                   name="chip" 
                   size={40} 
@@ -396,6 +397,7 @@ const CardStatusScreen = () => {
               </View>
               
               <View style={styles.cardNumberContainer}>
+                
                 <Text style={styles.cardNumber}>•••• •••• •••• {cardData.uid.slice(-4)}</Text>
               </View>
               
@@ -471,7 +473,7 @@ const CardStatusScreen = () => {
 
         {/* Botón de desasignación */}
         <View style={styles.controlCard}>
-          <Text style={styles.controlTitle}>Desasignar tarjeta</Text>
+          <Text style={styles.controlTitle}>Bloquear permanentemente</Text>
           <Text style={styles.warningText}>
             Esta acción liberará la tarjeta de tu cuenta permanentemente. Solo hazlo si has perdido la tarjeta.
           </Text>

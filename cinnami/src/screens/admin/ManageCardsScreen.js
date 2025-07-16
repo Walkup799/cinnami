@@ -8,6 +8,7 @@ import { globalStyles, colors } from '../../styles/globalStyles';
 import { API_BASE_URL }  from '../../utils/constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CustomAlert from '../../utils/customAlert';
+import { Ionicons } from '@expo/vector-icons';
 
 
 
@@ -353,7 +354,7 @@ const handleDeleteConfirm = async () => {
             onPress={handleOpenForm}
             disabled={loading}
           >
-            <MaterialIcons name="add-circle-outline" size={18} color={colors.white} style={{ marginRight: 6 }} />
+            <Ionicons name="add-circle-outline" size={18} color={colors.white} style={{ marginRight: 6 }} />
             <Text style={styles.headerButtonText}>Nuevo</Text>
           </TouchableOpacity>
         </View>
@@ -370,7 +371,7 @@ const handleDeleteConfirm = async () => {
             onPress={loadCards}
             disabled={loading}
           >
-            <MaterialIcons name="refresh" size={24} color={colors.canela} />
+            <Ionicons name="refresh" size={24} color={colors.canela} />
           </TouchableOpacity>
         </View>
 
@@ -408,7 +409,7 @@ const handleDeleteConfirm = async () => {
                 onPress={() => handleDeleteConfirmation(card.id, card.number)}
                 disabled={loading}
               >
-                <MaterialIcons name="delete" size={20} color={colors.danger} />
+                <Ionicons name="trash" size={20} color={colors.danger} />
               </TouchableOpacity>
             </View>
             
@@ -531,7 +532,7 @@ const handleDeleteConfirm = async () => {
                   onPress={handleCancelForm}
                   disabled={loading}
                 >
-                  <MaterialIcons name="close" size={20} color={colors.textDark} style={{ marginRight: 6 }} />
+                  <Ionicons name="close" size={20} color={colors.textDark} style={{ marginRight: 6 }} />
                   <Text style={styles.modalButtonCancelText}>Cancelar</Text>
                 </TouchableOpacity>
               </View>
@@ -548,7 +549,7 @@ const handleDeleteConfirm = async () => {
 >
   <View style={styles.confirmationModalOverlay}>
     <View style={styles.confirmationModalContent}>
-      <MaterialIcons 
+      <Ionicons 
         name="warning" 
         size={50} 
         color={colors.warning} 

@@ -1,8 +1,10 @@
 {
   "expo": {
-    "name": "Prototipo_cinnami",
-    "slug": "Prototipo_cinnami",
+    "name": "Security Roll",
+    "slug": "Security ROll",
     "version": "1.0.0",
+     "scheme": "cinnamiapp",        
+    "platforms": ["ios", "android", "web"],
     "orientation": "portrait",
     "icon": "./assets/cinnami_logo.jpeg",
     "userInterfaceStyle": "light",

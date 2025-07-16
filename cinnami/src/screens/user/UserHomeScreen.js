@@ -417,7 +417,7 @@ const validateField = (name, value) => {
         )}
       </ScrollView>
 
-      <Portal>
+     
         <Modal
         animationType="slide"
         transparent={true}
@@ -468,93 +468,8 @@ const validateField = (name, value) => {
           </View>
         </View>
       </Modal>
-      </Portal>
-       {/* Modal de detalle de usuario  */}
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={modalVisible}
-      onRequestClose={() => setModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <TouchableOpacity
-            style={styles.modalCloseIconLeft}
-            onPress={() => setModalVisible(false)}
-          >
-            <Icon name="close" size={24} color={colors.textLight} />
-          </TouchableOpacity>
-          {selectedUser && (
-            <ScrollView>
-              <View style={styles.userModalHeader}>
-                <View style={styles.userModalAvatar}>
-                  <Icon name="account" size={40} color={colors.primary} />
-                </View>
-                <Text style={styles.modalTitle}>
-                  {selectedUser.firstName} {selectedUser.lastName}
-                </Text>
-                <Text style={styles.userModalEmail}>{selectedUser.email}</Text>
-                <View
-                  style={[
-                    styles.userModalRole,
-                    selectedUser.role === 'Administrador' && styles.userRoleAdmin,
-                  ]}
-                >
-                  <Text style={styles.userModalRoleText}>{selectedUser.role}</Text>
-                </View>
-              </View>
-              <View style={styles.userDetailsContainer}>
-                <View style={styles.userDetailRow}>
-                  <Icon name="account" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Usuario:</Text>
-                  <Text style={styles.userDetailValue}>{selectedUser.username}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="email" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Correo:</Text>
-                  <Text style={styles.userDetailValue}>{selectedUser.email}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="card-account-details" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Nombres:</Text>
-                  <Text style={styles.userDetailValue}>{selectedUser.firstName}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="card-account-details" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Apellidos:</Text>
-                  <Text style={styles.userDetailValue}>{selectedUser.lastName}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="card-bulleted" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>ID Tarjeta:</Text>
-                  <Text style={styles.userDetailValue}>{selectedUser.cardId}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="door" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Puerta:</Text>
-                  <Text style={styles.userDetailValue}>{selectedUser.door}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="account-check" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Estado:</Text>
-                  <Text
-                    style={[
-                      styles.userDetailValue,
-                      selectedUser.status === 'Activo' ? styles.activeUser : styles.inactiveUser,
-                    ]}
-                  >
-                    {selectedUser.status}
-                  </Text>
-                </View>
-              </View>
-            </ScrollView>
-          )}
-        </View>
-      </View>
-    </Modal>
 
-    {/* Modales secundarios en Portal */}
-    <Portal>
+     
       {/* Modal de perfil */}
       <Modal
         visible={profileModalVisible}
@@ -618,16 +533,17 @@ const validateField = (name, value) => {
                     {userProfile?.status !== false ? 'Activo' : 'Inactivo'}
                   </Text>
                 </View>
+                <View style={styles.modalButtonsContainer}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.editButton]}
+                    onPress={() => setEditProfileMode(true)}
+                  >
+                    <Icon name="pencil" size={18} color="white" />
+                    <Text style={styles.actionButtonText}>Editar</Text>
+                  </TouchableOpacity>
               </View>
-              <View style={styles.modalButtonsContainer}>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.editButton]}
-                  onPress={() => setEditProfileMode(true)}
-                >
-                  <Icon name="pencil" size={18} color="white" />
-                  <Text style={styles.actionButtonText}>Editar</Text>
-                </TouchableOpacity>
               </View>
+              
             </>
           ) : (
             <ScrollView>
@@ -638,20 +554,23 @@ const validateField = (name, value) => {
                 { name: 'username', label: 'Usuario', icon: 'account' },
                 { name: 'email', label: 'Correo', icon: 'email' },
               ].map(field => (
-                <View key={field.name} style={styles.userDetailRow}>
-                  <Icon name={field.icon} size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>{field.label}:</Text>
-                  <TextInput
-                    style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee' }]}
-                    value={profileForm[field.name]}
-                    onChangeText={text => setProfileForm(prev => ({ ...prev, [field.name]: text }))}
-                  />
-                   {errors[field.name] && (
-                      <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
-                        {errors[field.name]}
-                      </Text>
-                    )}
-                </View>
+                <View key={field.name} style={styles.inputGroup}>
+  <Text style={styles.userDetailLabel}>{field.label}</Text>
+  <View style={styles.inputWithIcon}>
+    <Icon name={field.icon} size={20} color={colors.textLight} style={styles.userDetailIcon} />
+    <TextInput
+      style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee' }]}
+      value={profileForm[field.name]}
+      onChangeText={text => setProfileForm(prev => ({ ...prev, [field.name]: text }))}
+    />
+  </View>
+  {errors[field.name] && (
+    <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
+      {errors[field.name]}
+    </Text>
+  )}
+</View>
+
               ))}
               <TouchableOpacity
                 style={styles.togglePasswordButton}
@@ -747,50 +666,11 @@ const validateField = (name, value) => {
         </View>
       </Modal>
 
-      {/* Modal de selección de tarjeta */}
-      <Modal
-        visible={cardModalVisible}
-        onDismiss={() => setCardModalVisible(false)}
-        contentContainerStyle={styles.modalOverlay}
-      >
-        <View style={styles.cardPickerModalContent}>
-          <Text style={styles.modalTitle}>Tarjetas Disponibles</Text>
-          {availableCards.length === 0 ? (
-            <Text style={styles.emptyText}>No hay tarjetas disponibles</Text>
-          ) : (
-            <FlatList
-              style={{ height: 300 }}
-              contentContainerStyle={{ paddingBottom: 20 }}
-              data={availableCards}
-              keyExtractor={item => item._id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.cardItem}
-                  onPress={() => {
-                    setProfileForm(prev => ({ ...prev, cardId: item.cardId || item.uid }));
-                    setCardModalVisible(false);
-                  }}
-                >
-                  <Text style={styles.cardText}>UID: {item.cardId || item.uid}</Text>
-                  {item.issueDate && (
-                    <Text style={styles.cardDate}>
-                      Creada: {new Date(item.issueDate).toLocaleDateString()}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              )}
-            />
-          )}
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setCardModalVisible(false)}
-          >
-            <Text style={styles.closeButtonText}>Cancelar</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
-    </Portal>
-    <CustomAlert
+     
+
+    {/* Modales secundarios en Portal */}
+    
+      <CustomAlert
         visible={alertData.visible}
         title={alertData.title}
         message={alertData.message}
@@ -891,20 +771,21 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   modalOverlayAccess: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-    paddingBottom: 100,
-  },
+  flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: 20,
+  backgroundColor: 'rgba(0,0,0,0.3)', // para oscurecer el fondo del modal nativo
+},
   modalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 20,
-    maxHeight: '90%',
-    width: '90%', // Asegurar ancho consistente
-    alignSelf: 'center', 
-     marginBottom: 40, // Espacio adicional abajo
-  },
+  backgroundColor: colors.white,
+  borderRadius: 12,
+  padding: 20,
+  width: '90%',
+  maxHeight: '90%',
+  alignSelf: 'center',
+  elevation: 5,
+},
   modalCloseIconLeft: {
     position: 'absolute',
     top: 10,
@@ -1061,9 +942,9 @@ cardPickerModalContent: {
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
-    padding: 20,
-    paddingBottom: 0,
-    marginBottom: 2
+    padding: 1,
+    paddingBottom: 1,
+    marginBottom: -10
   },
 // ...existing styles...
 // ...existing styles...
@@ -1121,6 +1002,23 @@ userModalEmail: { fontSize: 14, color: colors.textLight },
     fontSize: 13,
     color: colors.textLight,
   },
+  inputGroup: {
+  marginBottom: 20,
+},
+
+inputWithIcon: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+},
+
+userDetailLabel: {
+  marginBottom: 5,
+  fontWeight: 'bold',
+  color: colors.textDark,
+  fontSize: 14,
+},
+
 
 });
 
