@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE_URL } from '../utils/constants'; 
+import SuccessAlert from '../utils/SuccessAlert';
+
 
 const ForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('success'); // success, error, warning, info, confirm
+
+
 
   const handleSubmit = async () => {
   try {
@@ -22,9 +30,10 @@ const ForgotPasswordScreen = ({ navigation }) => {
     const data = await response.json();
 
     if (!response.ok) {
-      // Manejo de error
-      console.error('Error en forgot-password:', data);
-      alert(data.message || 'No se pudo enviar el correo. Verifica tu correo electrónico.');
+       setAlertTitle('Error');
+      setAlertMessage(data.message || 'No se pudo enviar el correo. Verifica tu correo electrónico.');
+      setAlertType('error');
+      setAlertVisible(true);
       return;
     }
 
@@ -33,7 +42,10 @@ const ForgotPasswordScreen = ({ navigation }) => {
     navigation.navigate('PasswordResetSuccess');
   } catch (error) {
     console.error('Error al enviar solicitud:', error);
-    alert('Ocurrió un error. Intenta de nuevo más tarde.');
+    setAlertTitle('Error');
+    setAlertMessage('Ocurrió un error. Intenta de nuevo más tarde.');
+    setAlertType('error');
+    setAlertVisible(true);
   } finally {
     setIsLoading(false);
   }
@@ -41,6 +53,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
 
   return (
+    
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
@@ -71,18 +84,30 @@ const ForgotPasswordScreen = ({ navigation }) => {
           </View>
 
           <TouchableOpacity 
-            style={[styles.button, email === '' && styles.buttonDisabled]}
+            style={[styles.button, (isLoading || email === '') && styles.buttonDisabled]}
             onPress={handleSubmit}
             disabled={isLoading || email === ''}
           >
-            <Text style={styles.buttonText}>Enviar instrucciones</Text>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Enviar instrucciones</Text>
+            )}
           </TouchableOpacity>
+
         </View>
       </View>
 
       {/* Footer minimalista */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>© 2025 CINNAMI — Smart solutions for a connected world</Text>
+        <SuccessAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        onClose={() => setAlertVisible(false)}
+      />
       </View>
     </KeyboardAvoidingView>
   );

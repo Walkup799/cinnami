@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
 import { API_BASE_URL } from '../utils/constants';
 import { useRoute } from '@react-navigation/native';
+import SuccessAlert from '../utils/SuccessAlert';
 
 export default function ResetPasswordScreen() {
   const [token, setToken] = useState('');
@@ -10,7 +11,14 @@ export default function ResetPasswordScreen() {
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const route = useRoute();
-  
+
+
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('success'); // success, error, warning, info, confirm
+
+    
   useEffect(() => {
     if (route.params?.token) {
       setToken(route.params.token);
@@ -18,10 +26,22 @@ export default function ResetPasswordScreen() {
   }, [route.params]);
 
   const handleReset = async () => {
-    setMsg('');
-    setErr('');
-    if (password.length < 6) return setErr('Debe tener al menos 6 caracteres');
-    if (password !== confirm) return setErr('Las contraseñas no coinciden');
+    setAlertVisible(false);
+
+    if (password.length < 6) {
+    setAlertTitle('Error');
+    setAlertMessage('Debe tener al menos 6 caracteres');
+    setAlertType('error');
+    setAlertVisible(true);
+    return;
+  }
+  if (password !== confirm) {
+    setAlertTitle('Error');
+    setAlertMessage('Las contraseñas no coinciden');
+    setAlertType('error');
+    setAlertVisible(true);
+    return;
+  }
     try {
       const res = await fetch(`${API_BASE_URL}/reset-password`, {
         method: 'POST',
@@ -30,12 +50,21 @@ export default function ResetPasswordScreen() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMsg('¡Contraseña cambiada exitosamente!');
+        setAlertTitle('¡Éxito!');
+        setAlertMessage('Contraseña cambiada exitosamente');
+        setAlertType('success');
+        setAlertVisible(true);
       } else {
-        setErr(data.message || 'Token inválido o expirado');
+        setAlertTitle('Error');
+        setAlertMessage(data.message || 'Token inválido o expirado');
+        setAlertType('error');
+        setAlertVisible(true);
       }
     } catch (e) {
-      setErr('Error de conexión');
+      setAlertTitle('Error');
+      setAlertMessage('Error de conexión');
+      setAlertType('error');
+      setAlertVisible(true);
     }
   };
 
@@ -71,8 +100,14 @@ export default function ResetPasswordScreen() {
 
       <Button title="Cambiar contraseña" onPress={handleReset} />
 
-      {msg ? <Text style={styles.success}>{msg}</Text> : null}
-      {err ? <Text style={styles.error}>{err}</Text> : null}
+      <SuccessAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        onClose={() => setAlertVisible(false)}
+      />
+
     </View>
   );
 }

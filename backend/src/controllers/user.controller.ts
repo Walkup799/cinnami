@@ -283,7 +283,7 @@ export const forgotPasswordMovil = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+    if (!user) return res.status(404).json({ message: "El email no existe en el sistema, por favor intente con otro" });
 
     // Generar token seguro
     const token = crypto.randomBytes(32).toString('hex');
