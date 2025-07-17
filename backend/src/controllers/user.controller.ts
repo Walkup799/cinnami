@@ -11,6 +11,62 @@ import crypto from 'crypto';
 import { sendResetEmail } from "../utils/sendEmail"; 
 
 
+// CREAR UN NUEVO USUARIO
+export const createUser = async (req: Request, res: Response) => {
+    try {
+        const {
+            username,
+            password,
+            email,
+            role,
+            firstName,
+            lastName,
+            cardId,
+        } = req.body;
+
+        // Verificar si ya existe el usuario
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            return res.status(409).json({ message: "El nombre de usuario ya existe" });
+        }
+
+        // Encriptar contraseña
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        const newUser = new User({
+            username,
+            password: hashedPassword,
+            email,
+            role,
+            firstName,
+            lastName,
+            cardId, // tarjeta
+            doorOpenReminderMinutes: false, // valor por defecto
+            createdAt: new Date(),      // asignar la fecha actual
+            lastLogin: null,         // aún no ha iniciado sesión
+            status: true
+        });
+
+        const savedUser = await newUser.save();
+
+        return res.status(201).json({ user: savedUser });
+
+    } catch (error) {
+        console.error("Error ocurrido en createUser: ", error);
+        return res.status(500).json({ message: "Error al crear usuario", error });
+    }
+};
+
+export const getAllUsers = async (req: Request, res: Response) => {
+  try {
+    const users = await User.find().select('-password'); // opcional ocultar contraseña
+    res.status(200).json({ users });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener los usuarios' });
+  }
+};
+
 
 // EDITAR USUARIO (sin cambiar contraseña)
 export const updateUser = async (req: Request, res: Response) => {
@@ -222,8 +278,8 @@ export const updateUserCardId = async (req: Request, res: Response) => {
   }
 };
 
-// 1. Solicitar recuperación (envía correo)
-export const forgotPassword = async (req: Request, res: Response) => {
+// 1. Solicitar recuperación (envía correo) -MOVIL UNICA
+export const forgotPasswordMovil = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
@@ -237,7 +293,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     await user.save();
 
     // Frontend: usar /reset-password?token=xxx (no /reset-password/:token)
-    const resetLink = `http://localhost:3000/reset-password?token=${token}`;
+    const resetLink = `cinnamiapp://reset-password?token=${token}`;
     await sendResetEmail(user.email, resetLink);
 
     return res.json({ message: "Se envió un correo con el enlace para restablecer la contraseña." });

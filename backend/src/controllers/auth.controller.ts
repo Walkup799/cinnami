@@ -6,7 +6,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import dayjs from "dayjs";
 
-// LOGIN - Versión mejorada
+// LOGIN 
 export const login = async (req: Request, res: Response) => {
     const { identifier, password } = req.body;
 
@@ -71,7 +71,7 @@ export const login = async (req: Request, res: Response) => {
     }
 };
 
-// REFRESH TOKEN - Versión mejorada
+// REFRESH TOKEN 
 export const refreshToken = async (req: Request, res: Response) => {
     const { token } = req.body;
 
@@ -109,7 +109,7 @@ export const refreshToken = async (req: Request, res: Response) => {
     }
 };
 
-// LOGOUT - Nuevo endpoint
+// LOGOUT
 export const logout = async (req: Request, res: Response) => {
     const { refreshToken } = req.body;
 
@@ -123,58 +123,3 @@ export const logout = async (req: Request, res: Response) => {
 };
  
 
-// CREAR UN NUEVO USUARIO
-export const createUser = async (req: Request, res: Response) => {
-    try {
-        const {
-            username,
-            password,
-            email,
-            role,
-            firstName,
-            lastName,
-            cardId,
-        } = req.body;
-
-        // Verificar si ya existe el usuario
-        const existingUser = await User.findOne({ username });
-        if (existingUser) {
-            return res.status(409).json({ message: "El nombre de usuario ya existe" });
-        }
-
-        // Encriptar contraseña
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-        const newUser = new User({
-            username,
-            password: hashedPassword,
-            email,
-            role,
-            firstName,
-            lastName,
-            cardId, // tarjeta
-            doorOpenReminderMinutes: false, // valor por defecto
-            createdAt: new Date(),      // asignar la fecha actual
-            lastLogin: null,         // aún no ha iniciado sesión
-            status: true
-        });
-
-        const savedUser = await newUser.save();
-
-        return res.status(201).json({ user: savedUser });
-
-    } catch (error) {
-        console.error("Error ocurrido en createUser: ", error);
-        return res.status(500).json({ message: "Error al crear usuario", error });
-    }
-};
-
-export const getAllUsers = async (req: Request, res: Response) => {
-  try {
-    const users = await User.find().select('-password'); // opcional ocultar contraseña
-    res.status(200).json({ users });
-  } catch (error) {
-    res.status(500).json({ message: 'Error al obtener los usuarios' });
-  }
-};

@@ -86,7 +86,7 @@ export const getAvailableCards = async (req: Request, res: Response) => {
   }
 };
 
-// GET /api/cards/:id - Obtener tarjeta específica
+// GET /api/cards/:id - Obtener tarjeta específica - WEB
 export const getCardById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -118,7 +118,7 @@ export const getCardById = async (req: Request, res: Response) => {
   }
 };
 
-// PUT /api/cards/:id - Editar UID de tarjeta
+// PUT /api/cards/:id - Editar UID de tarjeta -WEB
 export const updateCardUID = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

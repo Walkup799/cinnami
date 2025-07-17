@@ -1,18 +1,44 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { API_BASE_URL } from '../utils/constants'; 
 
 const ForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+  try {
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      navigation.navigate('PasswordResetSuccess');
-    }, 1500);
-  };
+
+    const response = await fetch(`${API_BASE_URL}/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Manejo de error
+      console.error('Error en forgot-password:', data);
+      alert(data.message || 'No se pudo enviar el correo. Verifica tu correo electrónico.');
+      return;
+    }
+
+    // Éxito
+    console.log('Correo enviado:', data);
+    navigation.navigate('PasswordResetSuccess');
+  } catch (error) {
+    console.error('Error al enviar solicitud:', error);
+    alert('Ocurrió un error. Intenta de nuevo más tarde.');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <KeyboardAvoidingView

@@ -3,6 +3,7 @@ import LoginScreen from '../screens/LoginScreen';
 import { colors } from '../styles/globalStyles';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import PasswordResetSuccess from '../screens/PasswordResetSuccess';
+import ResetPasswordScreen from '../screens/ResetPasswordScreen'; // Asegúrate de importar el nuevo screen
 
 const Stack = createStackNavigator();
 
@@ -35,6 +36,13 @@ const AuthNavigator = ({ setUserRole }) => {
         component={PasswordResetSuccess}
         options={{ title: 'Recuperar contraseña' }}
       />
+
+      <Stack.Screen
+        name="ResetPassword"
+        component={ResetPasswordScreen}
+        options={{ title: 'Restablecer contraseña' }}
+      />
+
     </Stack.Navigator>
   );
 };

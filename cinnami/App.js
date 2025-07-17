@@ -7,6 +7,9 @@ import AdminTabNavigator from './src/navigation/AdminTabNavigator';
 import UserStackNavigator from './src/navigation/UserStackNavigator';
 import { colors } from './src/styles/globalStyles';
 import { handleTokenRefresh } from './src/utils/authHelpers'; 
+import * as Linking from 'expo-linking';
+import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
+
 
 const App = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -49,8 +52,19 @@ const App = () => {
     );
   }
 
+  const linking = {
+  prefixes: ['cinnamiapp://'],
+  config: {
+    screens: {
+      ResetPasswordScreen: 'reset-password', // el nombre del screen y la ruta del link
+      
+    },
+  },
+};
+
+
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking} >
     {userRole === 'admin' ? (
       <AdminTabNavigator setUserRole={setUserRole} />
     ) : userRole === 'docente' ? (
