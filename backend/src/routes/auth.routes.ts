@@ -9,6 +9,7 @@ import { verifyToken, isAdmin, isSelfOrAdmin } from "../middlewares/auth"; // Nu
 
 import { updateUser, disableUser, enableUser, changePassword, updateUserCardId, forgotPasswordMovil, resetPassword,  createUser, getAllUsers } from "../controllers/user.controller";
 import { assignCard, createCard, deleteCard, disableCard, enableCard, getAllCards, getAvailableCards, unassignCard, releaseUserCard, getCardByUid, assignCardMovil } from "../controllers/tarjet.controller";
+import { getLatestPersonCount, persons, getLatestDoorState, getRecentAccessEvents } from "../controllers/door.controller";
 
 const router = Router();
 
@@ -44,7 +45,13 @@ router.put('/cards/:id/unassign', unassignCard); // Desasignar tarjeta de un usu
 router.patch('/users/:id/release-card', releaseUserCard); // Liberar tarjeta de un usuario
 
 
-
+// Obtener tarjeta por UID - MOVIL
 router.get('/cards/by-uid/:uid', getCardByUid); // Obtener tarjeta por UID
+
+// conteo de personas -MOVIL
+
+router.get('/personCount/latest', getLatestPersonCount); 
+router.get('/door/latest', getLatestDoorState); // Obtener estado más reciente de la puerta
+router.get('/access-events/recent', getRecentAccessEvents); // Obtener últimos 10 accesos recientes
 
 export default router;

@@ -59,6 +59,23 @@ const AdminHomeScreen = () => {
       cardId: ''
     });
 
+
+    const [peopleStats, setPeopleStats] = useState({
+      entriesToday: 0,
+      exitsToday: 0,
+      currentInside: 0,
+      loading: false
+    });
+
+    const [doorState, setDoorState] = useState({
+      state: 'desconocido',
+      name: 'Sin puerta',
+      loading: false
+    });
+
+    const [accessLogs, setAccessLogs] = useState([]);
+    const [isLoadingAccess, setIsLoadingAccess] = useState(false);
+
   useEffect(() => {
     const loadUser = async () => {
       const userData = await AsyncStorage.getItem('userData');
@@ -322,51 +339,102 @@ const fetchAvailableCards = async () => {
      setIsLoadingCards(false);
    }
 };
- 
-  const peopleCount = 1245;
-  const doorStatus = 'Abierta';
 
-  const accessLogs = [
-    {
-      id: '1',
-      username: 'ana.gomez',
-      name: 'Ana Gómez',
-      role: 'Docente',
-      time: '08:15 AM',
-      door: 'Puerta Norte',
-      email: 'ana.gomez@ejemplo.com',
-      firstName: 'Ana',
-      lastName: 'Gómez',
-      cardId: 'A12345',
-      status: 'Activo',
-    },
-    {
-      id: '2',
-      username: 'luis.torres',
-      name: 'Luis Torres',
-      role: 'Administrador',
-      time: '08:20 AM',
-      door: 'Puerta Principal',
-      email: 'luis.torres@ejemplo.com',
-      firstName: 'Luis',
-      lastName: 'Torres',
-      cardId: 'B23456',
-      status: 'Inactivo',
-    },
-    {
-      id: '3',
-      username: 'maria.lopez',
-      name: 'María López',
-      role: 'Estudiante',
-      time: '08:25 AM',
-      door: 'Puerta Este',
-      email: 'maria.lopez@ejemplo.com',
-      firstName: 'María',
-      lastName: 'López',
-      cardId: 'C34567',
-      status: 'Activo',
-    },
-  ];
+
+ 
+  // Función para obtener estadísticas de personas del día actual
+const fetchPersonStats = async () => {
+  try {
+    setPeopleStats(prev => ({ ...prev, loading: true }));
+    
+    const token = await AsyncStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/personCount/latest`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error al obtener estadísticas de personas');
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      setPeopleStats({
+        entriesToday: data.data?.dailyStats?.entriesToday || 0,
+        exitsToday: data.data?.dailyStats?.exitsToday || 0,
+        currentInside: data.data?.currentInside || 0,
+        // Nuevos campos disponibles (opcionales):
+        totalEntries: data.data?.totalEntries || 0,
+        totalExits: data.data?.totalExits || 0,
+        loading: false
+      });
+    } else {
+      throw new Error(data.message || 'Error en la respuesta');
+    }
+  } catch (error) {
+    console.error('Error al cargar estadísticas de personas:', error);
+    setPeopleStats(prev => ({ ...prev, loading: false }));
+  }
+};
+
+// Función para obtener el estado de la puerta
+const fetchDoorState = async () => {
+  try {
+    setDoorState(prev => ({ ...prev, loading: true }));
+    
+    const token = await AsyncStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/door/latest`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error al obtener estado de la puerta');
+    }
+    
+    const data = await response.json();
+    setDoorState({
+      state: data.state || 'desconocido',
+      name: data.name || 'Sin puerta',
+      loading: false
+    });
+  } catch (error) {
+    console.error('Error al cargar estado de la puerta:', error);
+    setDoorState(prev => ({ ...prev, loading: false }));
+  }
+};
+
+// Actualizar el useEffect
+useEffect(() => {
+  const loadUser = async () => {
+    const userData = await AsyncStorage.getItem('userData');
+    if (userData) {
+      setUserProfile(JSON.parse(userData));
+    }
+  };
+  
+  loadUser();
+  fetchPersonStats(); 
+  fetchDoorState();
+  fetchRecentAccess(); 
+}, []);
+
+// Función para actualización periódica (cada 30 segundos)
+useEffect(() => {
+  const interval = setInterval(() => {
+    fetchPersonStats(); 
+    fetchDoorState(); 
+     fetchRecentAccess();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, []);
+
+
+  
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -377,20 +445,26 @@ const fetchAvailableCards = async () => {
   };
 
   const renderAccessItem = ({ item }) => (
-    <View style={styles.accessItem}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.accessName}>{item.name}</Text>
-        <Text style={styles.accessRole}>Rol: {item.role}</Text>
-        <Text style={styles.accessTime}>Hora: {item.time}</Text>
-      </View>
-      <TouchableOpacity
-        style={styles.infoButton}
-        onPress={() => handleShowDetails(item)}
-      >
-        <Icon name="eye-outline" size={24} color={colors.canela} />
-      </TouchableOpacity>
+  <View style={styles.accessItem}>
+    <View style={{ flex: 1 }}>
+      <Text style={styles.accessName}>{item.name}</Text>
+      <Text style={styles.accessRole}>Rol: {item.role}</Text>
+      <Text style={styles.accessTime}>Hora: {item.time}</Text>
+      <Text style={[
+        styles.accessType,
+        item.accessType === 'Entry' ? styles.entryAccess : styles.exitAccess
+      ]}>
+        {item.accessType === 'Entry' ? '↗️ Entrada' : '↙️ Salida'}
+      </Text>
     </View>
-  );
+    <TouchableOpacity
+      style={styles.infoButton}
+      onPress={() => handleShowDetails(item)}
+    >
+      <Icon name="eye-outline" size={24} color={colors.canela} />
+    </TouchableOpacity>
+  </View>
+);
 
   useEffect(() => {
   if (!changePasswordMode) {
@@ -408,6 +482,57 @@ const fetchAvailableCards = async () => {
     }));
   }
 }, [changePasswordMode]);
+
+
+// Función para obtener accesos recientes 
+const fetchRecentAccess = async () => {
+  try {
+    setIsLoadingAccess(true);
+    
+    const token = await AsyncStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/access-events/recent`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error al obtener accesos recientes');
+    }
+    
+    const data = await response.json();
+    
+    // Mapear los datos del backend al formato que espera la UI
+    const mappedEvents = data.events.map(event => ({
+      id: event._id,
+      username: event.user?.username || 'Usuario desconocido',
+      name: `${event.user?.firstName || ''} ${event.user?.lastName || ''}`.trim() || 'Sin nombre',
+      role: event.user?.role === 'admin' ? 'Administrador' : 
+            event.user?.role === 'docente' ? 'Docente' : 
+            event.user?.role === 'estudiante' ? 'Estudiante' : 'Sin rol',
+      time: new Date(event.timestamp).toLocaleTimeString('es-ES', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      }),
+      door: event.door || 'Puerta desconocida',
+      email: event.user?.email || 'Sin email',
+      firstName: event.user?.firstName || 'Sin nombre',
+      lastName: event.user?.lastName || 'Sin apellido',
+      cardId: event.cardId || event.user?.cardId || 'Sin tarjeta',
+      status: event.user?.status !== false ? 'Activo' : 'Inactivo',
+      accessType: event.accessType || 'Desconocido', // Entry/Exit
+      rawTimestamp: event.timestamp, // Para ordenamiento adicional si es necesario
+    }));
+    
+    setAccessLogs(mappedEvents);
+  } catch (error) {
+    console.error('Error al cargar accesos recientes:', error);
+    showError('No se pudieron cargar los accesos recientes');
+  } finally {
+    setIsLoadingAccess(false);
+  }
+};
 
 
 
@@ -454,32 +579,103 @@ const fetchAvailableCards = async () => {
         </TouchableOpacity>
       </View>
 
+      {/* Card de estado de la puerta */}
+      {/* Card de estado de la puerta - VERSIÓN MEJORADA */}
+<View style={styles.doorStatusCard}>
+  <View style={styles.doorStatusHeader}>
+    <Icon name="door" size={24} color={colors.canela} />
+    <Text style={styles.doorStatusTitle}>Estado de la Puerta</Text>
+    {doorState.loading && (
+      <View style={styles.loadingIndicator}>
+        <Icon name="loading" size={16} color={colors.canela} />
+      </View>
+    )}
+  </View>
+  
+  <View style={styles.doorStatusContent}>
+    <Text style={styles.doorName}>{doorState.name}</Text>
+    
+    <View style={styles.doorStatusRow}>
+      <Icon 
+        name={doorState.state === 'ABIERTA' || doorState.state === 'abierta' ? 'door-open' : 'door-closed'} 
+        size={28} 
+        color={doorState.state === 'ABIERTA' || doorState.state === 'abierta' ? colors.doorOpen : colors.doorClosed}
+      />
+      <Text style={[
+        styles.doorStatusText,
+        doorState.state === 'ABIERTA' || doorState.state === 'abierta' ? styles.doorOpenText : styles.doorClosedText
+      ]}>
+        {doorState.loading ? 'Verificando...' : 
+         doorState.state === 'ABIERTA' || doorState.state === 'abierta' ? 'ABIERTA' : 'CERRADA'}
+      </Text>
+    </View>
+    
+    {/* Indicador visual adicional */}
+    <View style={[
+      styles.statusIndicator,
+      doorState.state === 'ABIERTA' || doorState.state === 'abierta' ? styles.openIndicator : styles.closedIndicator
+    ]} />
+    
+    <Text style={styles.lastUpdate}>
+      Última actualización: {new Date().toLocaleTimeString('es-ES', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })}
+    </Text>
+  </View>
+</View>
+
       <View style={styles.summaryCard}>
         <View style={styles.summaryBox}>
-          <Text style={styles.summaryLabel}>Personas ingresadas</Text>
-          <Text style={styles.summaryValue}>{peopleCount}</Text>
+          <Text style={styles.summaryLabel}>Entraron hoy</Text>
+          <Text style={styles.summaryValue}>
+            {peopleStats.loading ? '...' : peopleStats.entriesToday}
+          </Text>
         </View>
         <View style={styles.separator} />
         <View style={styles.summaryBox}>
-          <Text style={styles.summaryLabel}>Estado de puerta</Text>
-          <Text
-            style={[
-              styles.summaryValue,
-              { color: doorStatus === 'Abierta' ? colors.success : colors.danger },
-            ]}
-          >
-            {doorStatus}
+          <Text style={styles.summaryLabel}>Salieron hoy</Text>
+          <Text style={styles.summaryValue}>
+            {peopleStats.loading ? '...' : peopleStats.exitsToday}
+          </Text>
+        </View>
+        <View style={styles.separator} />
+        <View style={styles.summaryBox}>
+          <Text style={styles.summaryLabel}>Dentro ahora</Text>
+          <Text style={[
+            styles.summaryValue,
+            { color: peopleStats.currentInside > 0 ? colors.success : colors.textLight }
+          ]}>
+            {peopleStats.loading ? '...' : peopleStats.currentInside}
           </Text>
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Accesos recientes</Text>
-      <FlatList
-        data={accessLogs}
-        keyExtractor={(item) => item.id}
-        renderItem={renderAccessItem}
-        scrollEnabled={false}
-      />
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Accesos recientes</Text>
+        {isLoadingAccess && (
+          <View style={styles.loadingIndicator}>
+            <Icon name="loading" size={16} color={colors.canela} />
+            <Text style={styles.loadingText}>Cargando...</Text>
+          </View>
+        )}
+      </View>
+
+      {accessLogs.length === 0 && !isLoadingAccess ? (
+        <View style={styles.emptyAccessContainer}>
+          <Icon name="door-open" size={48} color={colors.textLight} />
+          <Text style={styles.emptyAccessText}>No hay accesos recientes</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={accessLogs}
+          keyExtractor={(item) => item.id}
+          renderItem={renderAccessItem}
+          scrollEnabled={false}
+          refreshing={isLoadingAccess}
+          onRefresh={fetchRecentAccess}
+        />
+      )}
     </ScrollView>
 
     {/* Modal de detalle de usuario  */}
@@ -842,6 +1038,10 @@ const colors = {
   danger: '#E57373',
   success: '#81C784',
   primary: '#6CA0DC',
+  doorOpen: '#4CAF50',      // Verde suave para abierta
+  doorClosed: '#F44336',    // Rojo suave para cerrada
+  doorOpenLight: '#E8F5E8', // Verde muy claro para el indicador
+  doorClosedLight: '#FFEBEE'
 };
 
 const styles = StyleSheet.create({
@@ -865,17 +1065,45 @@ const styles = StyleSheet.create({
   summaryCard: {
     backgroundColor: colors.white,
     borderRadius: 10,
-    padding: 20,
+    padding: 16,
     marginBottom: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: colors.darkBeige,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  summaryBox: { flex: 1, alignItems: 'center' },
-  separator: { width: 1, backgroundColor: colors.darkBeige, marginHorizontal: 10 },
-  summaryLabel: { color: colors.textLight, marginBottom: 5 },
-  summaryValue: { fontSize: 20, fontWeight: 'bold', color: colors.canela },
+  summaryBox: { 
+    flex: 1, 
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  
+  summaryLabel: { 
+    color: colors.textLight, 
+    marginBottom: 6,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  
+  summaryValue: { 
+    fontSize: 22, 
+    fontWeight: 'bold', 
+    color: colors.canela,
+    textAlign: 'center',
+  },
+  
+  separator: { 
+    width: 1, 
+    backgroundColor: colors.darkBeige, 
+    marginHorizontal: 8,
+    opacity: 0.7,
+  },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: colors.textDark, marginBottom: 10 },
   accessItem: {
     backgroundColor: colors.white,
@@ -1109,7 +1337,167 @@ cardItem: {
   width: '100%',
 },
 
+doorStatusCard: {
+  backgroundColor: colors.white,
+  borderRadius: 16,
+  padding: 24,
+  marginBottom: 20,
+  borderWidth: 1,
+  borderColor: colors.darkBeige,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.12,
+  shadowRadius: 8,
+  elevation: 4,
+},
+
+doorStatusHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 16,
+  justifyContent: 'space-between',
+},
+
+doorStatusTitle: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: colors.textDark,
+  marginLeft: 8,
+  flex: 1,
+},
+
+doorStatusContent: {
+  alignItems: 'center',
+  paddingVertical: 8,
+},
+
+doorName: {
+  fontSize: 16,
+  color: colors.textLight,
+  marginBottom: 16,
+  textAlign: 'center',
+  fontWeight: '500',
+},
+
+doorStatusRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 12,
+},
+
+doorStatusText: {
+  fontSize: 22,
+  fontWeight: 'bold',
+  marginLeft: 12,
+  letterSpacing: 1,
+  textTransform: 'uppercase',
+},
+
+doorOpenText: {
+  color: colors.doorOpen,
+  textShadowColor: colors.doorOpen,
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 2,
+  textShadowOpacity: 0.3,
+},
+
+doorClosedText: {
+  color: colors.doorClosed,
+  textShadowColor: colors.doorClosed,
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 2,
+  textShadowOpacity: 0.3,
+},
+
+statusIndicator: {
+  width: 60,
+  height: 4,
+  borderRadius: 2,
+  marginBottom: 12,
+},
+
+openIndicator: {
+  backgroundColor: colors.doorOpen,
+  shadowColor: colors.doorOpen,
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.4,
+  shadowRadius: 4,
+  elevation: 2,
+},
+
+closedIndicator: {
+  backgroundColor: colors.doorClosed,
+  shadowColor: colors.doorClosed,
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.4,
+  shadowRadius: 4,
+  elevation: 2,
+},
+
+lastUpdate: {
+  fontSize: 12,
+  color: colors.textLight,
+  fontStyle: 'italic',
+  opacity: 0.8,
+},
+
+loadingIndicator: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginLeft: 'auto',
+},
+  accessType: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  
+  entryAccess: {
+    color: colors.success,
+  },
+  
+  exitAccess: {
+    color: colors.primary,
+  },
+  
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  
+  loadingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  loadingText: {
+    fontSize: 12,
+    color: colors.textLight,
+    marginLeft: 4,
+  },
+  
+  emptyAccessContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.darkBeige,
+  },
+  
+  emptyAccessText: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+
 });
+
+
+
 
 
 export default AdminHomeScreen; 
