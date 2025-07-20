@@ -1,7 +1,7 @@
-import { Schema, model, Document } from "mongoose";
+import mongoose, { Schema, model, Document } from "mongoose";
 
 export interface IAccessEvent extends Document {
-  userId: string;
+  userId: mongoose.Types.ObjectId;
   userName?: string;
   cardId: string;
   doorId: string;
@@ -11,13 +11,13 @@ export interface IAccessEvent extends Document {
 }
 
 const AccessEventSchema = new Schema<IAccessEvent>({
-  userId:   { type: String, required: true },
+  userId:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   userName: { type: String },
   cardId:   { type: String, required: true },
-  doorId:   { type: String, required: true },
+  doorId:   { type: String },
   doorName: { type: String },
   timestamp:{ type: Date,   default: Date.now },
   status:   { type: String }
 });
 
-export const AccessEvent = model<IAccessEvent>("AccessEvent", AccessEventSchema);
+export const AccessEvent = model<IAccessEvent>("Access_Event", AccessEventSchema);

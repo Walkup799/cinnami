@@ -11,7 +11,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../../utils/constants';
-import { Portal, Modal, Provider} from 'react-native-paper';
+import { Portal, Modal, Provider, ActivityIndicator } from 'react-native-paper';
 import CustomAlert from '../../utils/customAlert';
 
 
@@ -264,26 +264,79 @@ const validateField = (name, value) => {
  
   
 
-  const accessLogs = [
-    {
-      id: '1',
-      door: 'Puerta Principal',
-      time: '10:30 AM',
-      date: '29 Jun 2025',
-      status: 'Acceso permitido',
-    },
-    {
-      id: '2',
-      door: 'Puerta Este',
-      time: '11:00 AM',
-      date: '28 Jun 2025',
-      status: 'Acceso denegado',
-    },
-  ];
 
+
+  // Estados para accesos recientes del usuario y puertas
+  const [accessLogs, setAccessLogs] = useState([]);
+  const [isLoadingAccess, setIsLoadingAccess] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedAccess, setSelectedAccess] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [doors, setDoors] = useState([]);
+
+  // Traer todas las puertas
+  const fetchDoors = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await fetch(`${API_BASE_URL}/doors`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('No se pudieron cargar las puertas');
+      const data = await response.json();
+      setDoors(data.doors || []);
+    } catch (e) {
+      setDoors([]);
+    }
+  };
+
+  // Traer accesos recientes SOLO del usuario logeado y mapear info de la puerta
+  const fetchUserAccessLogs = async () => {
+    if (!userProfile?._id) return;
+    setIsLoadingAccess(true);
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await fetch(`${API_BASE_URL}/access-events/user/${userProfile._id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('No se pudieron cargar los accesos');
+      const data = await response.json();
+      // Mapear para mostrar info de la puerta
+      const mapped = (data.accessLogs || []).map(ev => {
+        const door = doors.find(d => d._id === ev.doorId || d.doorId === ev.doorId);
+        return {
+          id: ev._id,
+          doorName: door?.name || 'Puerta desconocida',
+          doorState: door?.state || '-',
+          time: new Date(ev.timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          date: new Date(ev.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+          status: ev.result === 'allowed' || ev.result === 'granted' ? 'Acceso permitido' : 'Acceso denegado',
+        };
+      });
+      setAccessLogs(mapped);
+    } catch (e) {
+      setAccessLogs([]);
+    } finally {
+      setIsLoadingAccess(false);
+    }
+  };
+
+
+  // Cargar puertas y luego accesos
+  useEffect(() => {
+    const loadAll = async () => {
+      await fetchDoors();
+    };
+    loadAll();
+  }, []);
+
+  // Recarga manual de accesos
+  const handleReloadAccess = async () => {
+    await fetchUserAccessLogs();
+  };
+
+  useEffect(() => {
+    if (userProfile?._id && doors.length > 0) fetchUserAccessLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile?._id, doors]);
 
   const handleShowDetails = (access) => {
     setSelectedAccess(access);
@@ -294,10 +347,12 @@ const validateField = (name, value) => {
   const totalDenied = accessLogs.filter(log => log.status === 'Acceso denegado').length;
   const totalAccesses = accessLogs.length;
 
+  // Tarjeta de acceso con info de la puerta
   const renderAccessItem = ({ item }) => (
     <View style={styles.accessItem}>
       <View style={{ flex: 1 }}>
-        <Text style={styles.accessName}>{item.door}</Text>
+        <Text style={styles.accessName}>{item.doorName}</Text>
+        <Text style={styles.accessRole}>Estado: {item.doorState === 'open' ? 'Abierta' : item.doorState === 'close' ? 'Cerrada' : '-'}</Text>
         <Text style={styles.accessRole}>Fecha: {item.date}</Text>
         <Text style={styles.accessTime}>Hora: {item.time}</Text>
       </View>
@@ -400,9 +455,24 @@ const validateField = (name, value) => {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Accesos recientes</Text>
 
-        {accessLogs.length === 0 ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <Text style={styles.sectionTitle}>Accesos recientes</Text>
+          <TouchableOpacity onPress={handleReloadAccess} style={styles.reloadButton} disabled={isLoadingAccess}>
+            {isLoadingAccess ? (
+              <ActivityIndicator size={22} color={colors.primary} />
+            ) : (
+              <Icon name="reload" size={26} color={colors.canela} />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {isLoadingAccess ? (
+          <View style={{ alignItems: 'center', marginTop: 30 }}>
+            <ActivityIndicator size={40} color={colors.primary} />
+            <Text style={{ color: colors.textLight, marginTop: 10 }}>Cargando accesos...</Text>
+          </View>
+        ) : accessLogs.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Icon name="door" size={100} color={colors.darkBeige} />
             <Text style={styles.emptyText}>Aquí se verán los accesos recientes</Text>
@@ -415,31 +485,29 @@ const validateField = (name, value) => {
             scrollEnabled={false}
           />
         )}
+
       </ScrollView>
 
-     
+      <Portal>
         <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlayAccess}>
-          <View style={styles.modalContent}>
+          visible={modalVisible}
+          onDismiss={() => setModalVisible(false)}
+          contentContainerStyle={styles.modalOverlayAccess}
+        >
+          <View style={[styles.modalContent, {paddingTop: 40}]}> 
             <TouchableOpacity
               style={styles.modalCloseIconLeft}
               onPress={() => setModalVisible(false)}
             >
               <Icon name="close" size={24} color={colors.textLight} />
             </TouchableOpacity>
-
             {selectedAccess && (
-              <View style={{ alignItems: 'center' }}>
-                <View style={styles.userModalAvatar}>
+              <View style={{ width: '100%' }}>
+                <View style={[styles.userModalAvatar, { alignSelf: 'center' }]}> 
                   <Icon name="door" size={40} color={colors.primary} />
                 </View>
                 <Text style={styles.modalTitle}>{selectedAccess.door}</Text>
-                <View style={styles.userDetailsContainer}>
+                <View style={[styles.userDetailsContainer, { width: '100%' }]}> 
                   <View style={styles.userDetailRow}>
                     <Icon name="calendar" size={20} color={colors.textLight} style={styles.userDetailIcon} />
                     <Text style={styles.userDetailLabel}>Fecha:</Text>
@@ -466,8 +534,7 @@ const validateField = (name, value) => {
               </View>
             )}
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
      
       {/* Modal de perfil */}
@@ -476,120 +543,119 @@ const validateField = (name, value) => {
         onDismiss={() => setProfileModalVisible(false)}
         contentContainerStyle={styles.modalOverlay}
       >
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { paddingTop: 40, width: '90%', maxWidth: 420 }]}> 
           <TouchableOpacity
             style={styles.modalCloseIconLeft}
             onPress={() => setProfileModalVisible(false)}
           >
             <Icon name="close" size={24} color={colors.textLight} />
           </TouchableOpacity>
-          {!editProfileMode ? (
-            <>
-              <View style={styles.userModalHeader}>
-                <View style={styles.userModalAvatar}>
-                  <Icon name="account" size={40} color={colors.primary} />
-                </View>
-                <Text style={styles.modalTitle}>
-                  {userProfile?.firstName} {userProfile?.lastName}
-                </Text>
-                <Text style={styles.userModalEmail}>{userProfile?.email}</Text>
-                <View style={[
-                  styles.userModalRole,
-                  userProfile?.role === 'admin' && styles.userRoleAdmin
-                ]}>
-                  <Text style={styles.userModalRoleText}>
-                    {userProfile?.role === 'admin' ? 'Administrador' : userProfile?.role}
+          <ScrollView contentContainerStyle={{ flexGrow: 1, width: '100%' }}>
+            {!editProfileMode ? (
+              <>
+                <View style={styles.userModalHeader}> 
+                  <View style={[styles.userModalAvatar, { alignSelf: 'center' }]}> 
+                    <Icon name="account" size={40} color={colors.primary} />
+                  </View>
+                  <Text style={styles.modalTitle}> 
+                    {userProfile?.firstName} {userProfile?.lastName}
                   </Text>
-                </View>
-              </View>
-              <View style={styles.userDetailsContainer}>
-                <View style={styles.userDetailRow}>
-                  <Icon name="account" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Usuario:</Text>
-                  <Text style={styles.userDetailValue}>{userProfile?.username}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="card-account-details" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Nombres:</Text>
-                  <Text style={styles.userDetailValue}>{userProfile?.firstName}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="card-account-details" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Apellidos:</Text>
-                  <Text style={styles.userDetailValue}>{userProfile?.lastName}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="email" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Correo:</Text>
-                  <Text style={styles.userDetailValue}>{userProfile?.email}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="account-check" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Estado:</Text>
-                  <Text style={[
-                    styles.userDetailValue,
-                    userProfile?.status !== false ? styles.activeUser : styles.inactiveUser
+                  <Text style={styles.userModalEmail}>{userProfile?.email}</Text>
+                  <View style={[
+                    styles.userModalRole,
+                    userProfile?.role === 'admin' && styles.userRoleAdmin,
+                    { alignSelf: 'center' }
                   ]}>
-                    {userProfile?.status !== false ? 'Activo' : 'Inactivo'}
-                  </Text>
+                    <Text style={styles.userModalRoleText}>
+                      {userProfile?.role === 'admin' ? 'Administrador' : userProfile?.role}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.modalButtonsContainer}>
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.editButton]}
-                    onPress={() => setEditProfileMode(true)}
-                  >
-                    <Icon name="pencil" size={18} color="white" />
-                    <Text style={styles.actionButtonText}>Editar</Text>
-                  </TouchableOpacity>
-              </View>
-              </View>
-              
-            </>
-          ) : (
-            <ScrollView>
-              <Text style={styles.modalTitle}>Editar Perfil</Text>
-              {[
-                { name: 'firstName', label: 'Nombres', icon: 'card-account-details' },
-                { name: 'lastName', label: 'Apellidos', icon: 'card-account-details' },
-                { name: 'username', label: 'Usuario', icon: 'account' },
-                { name: 'email', label: 'Correo', icon: 'email' },
-              ].map(field => (
-                <View key={field.name} style={styles.inputGroup}>
-  <Text style={styles.userDetailLabel}>{field.label}</Text>
-  <View style={styles.inputWithIcon}>
-    <Icon name={field.icon} size={20} color={colors.textLight} style={styles.userDetailIcon} />
-    <TextInput
-      style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee' }]}
-      value={profileForm[field.name]}
-      onChangeText={text => setProfileForm(prev => ({ ...prev, [field.name]: text }))}
-    />
-  </View>
-  {errors[field.name] && (
-    <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
-      {errors[field.name]}
-    </Text>
-  )}
-</View>
-
-              ))}
-              <TouchableOpacity
-                style={styles.togglePasswordButton}
-                onPress={() => setChangePasswordMode(prev => !prev)}
-              >
-                <Text style={styles.togglePasswordText}>
-                  {changePasswordMode ? 'Cancelar cambio de contraseña' : 'Cambiar contraseña'}
-                </Text>
-              </TouchableOpacity>
-
-               {changePasswordMode && (
-                    <>
-                      
-
-                      <View style={styles.userDetailRow}>
+                <View style={[styles.userDetailsContainer, { width: '100%' }]}> 
+                  <View style={styles.userDetailRow}>
+                    <Icon name="account" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                    <Text style={styles.userDetailLabel}>Usuario:</Text>
+                    <Text style={styles.userDetailValue}>{userProfile?.username}</Text>
+                  </View>
+                  <View style={styles.userDetailRow}>
+                    <Icon name="card-account-details" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                    <Text style={styles.userDetailLabel}>Nombres:</Text>
+                    <Text style={styles.userDetailValue}>{userProfile?.firstName}</Text>
+                  </View>
+                  <View style={styles.userDetailRow}>
+                    <Icon name="card-account-details" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                    <Text style={styles.userDetailLabel}>Apellidos:</Text>
+                    <Text style={styles.userDetailValue}>{userProfile?.lastName}</Text>
+                  </View>
+                  <View style={styles.userDetailRow}>
+                    <Icon name="email" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                    <Text style={styles.userDetailLabel}>Correo:</Text>
+                    <Text style={styles.userDetailValue}>{userProfile?.email}</Text>
+                  </View>
+                  <View style={styles.userDetailRow}>
+                    <Icon name="account-check" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                    <Text style={styles.userDetailLabel}>Estado:</Text>
+                    <Text style={[
+                      styles.userDetailValue,
+                      userProfile?.status !== false ? styles.activeUser : styles.inactiveUser
+                    ]}>
+                      {userProfile?.status !== false ? 'Activo' : 'Inactivo'}
+                    </Text>
+                  </View>
+                  <View style={styles.modalButtonsContainer}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.editButton]}
+                      onPress={() => setEditProfileMode(true)}
+                    >
+                      <Icon name="pencil" size={18} color="white" />
+                      <Text style={styles.actionButtonText}>Editar</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Editar Perfil</Text>
+                {[
+                  { name: 'firstName', label: 'Nombres', icon: 'card-account-details' },
+                  { name: 'lastName', label: 'Apellidos', icon: 'card-account-details' },
+                  { name: 'username', label: 'Usuario', icon: 'account' },
+                  { name: 'email', label: 'Correo', icon: 'email' },
+                ].map(field => (
+                  <View key={field.name} style={[styles.inputGroup, { width: '100%' }]}> 
+                    <Text style={styles.userDetailLabel}>{field.label}</Text>
+                    <View style={[styles.inputWithIcon, { width: '100%' }]}> 
+                      <Icon name={field.icon} size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                      <TextInput
+                        style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee', width: '100%' }]}
+                        value={profileForm[field.name]}
+                        onChangeText={text => setProfileForm(prev => ({ ...prev, [field.name]: text }))}
+                      />
+                    </View>
+                    {errors[field.name] && (
+                      <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
+                        {errors[field.name]}
+                      </Text>
+                    )}
+                  </View>
+                ))}
+                <TouchableOpacity
+                  style={styles.togglePasswordButton}
+                  onPress={() => setChangePasswordMode(prev => !prev)}
+                >
+                  <Text style={styles.togglePasswordText}>
+                    {changePasswordMode ? 'Cancelar cambio de contraseña' : 'Cambiar contraseña'}
+                  </Text>
+                </TouchableOpacity>
+                {changePasswordMode && (
+                  <>
+                    {/* Nueva contraseña */}
+                    <View style={[styles.inputGroup, { width: '100%' }]}> 
+                      <Text style={styles.userDetailLabel}>Nueva contraseña:</Text>
+                      <View style={[styles.inputWithIcon, { width: '100%' }]}> 
                         <Icon name="lock" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                        <Text style={styles.userDetailLabel}>Nueva contraseña:</Text>
                         <TextInput
-                          style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee' }]}
+                          style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee', width: '100%' }]}
                           value={profileForm.password}
                           onChangeText={text => {
                             setProfileForm(prev => {
@@ -599,72 +665,71 @@ const validateField = (name, value) => {
                               return updatedForm;
                             });
                           }}
-
                           secureTextEntry={!showPassword}
                           placeholder="Nueva contraseña"
                         />
                         <TouchableOpacity onPress={() => setShowPassword(prev => !prev)}>
                           <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} color="#888" />
                         </TouchableOpacity>
-                        
                       </View>
                       {errors.password && (
-                          <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
-                            {errors.password}
-                          </Text>
-                        )}
-
-                      <View style={styles.userDetailRow}>
+                        <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
+                          {errors.password}
+                        </Text>
+                      )}
+                    </View>
+                    {/* Confirmar contraseña */}
+                    <View style={[styles.inputGroup, { width: '100%' }]}> 
+                      <Text style={styles.userDetailLabel}>Confirmar contraseña:</Text>
+                      <View style={[styles.inputWithIcon, { width: '100%' }]}> 
                         <Icon name="lock-check" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                        <Text style={styles.userDetailLabel}>Confirmar contraseña:</Text>
                         <TextInput
-                          style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee' }]}
+                          style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee', width: '100%' }]}
                           value={profileForm.confirmPassword}
                           onChangeText={text => {
                             setProfileForm(prev => ({ ...prev, confirmPassword: text }));
                             validateField('confirmPassword', text);
                           }}
-
                           secureTextEntry={!showConfirmPassword}
                           placeholder="Confirmar contraseña"
                         />
                         <TouchableOpacity onPress={() => setShowConfirmPassword(prev => !prev)}>
                           <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#888" />
                         </TouchableOpacity>
-                        
                       </View>
                       {errors.confirmPassword && (
-                          <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
-                            {errors.confirmPassword}
-                          </Text>
-                        )}
-                    </>
-                  )}
-
-                  <View style={styles.modalButtonsContainer}>
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.cancelButtonGeneral]}
-                        onPress={() => {
-                          setEditProfileMode(false);
-                          setErrors({}); // Limpia errores
-                        }}
-                      >
-                        <Icon name="close" size={18} color="#fff" />
-                        <Text style={styles.actionButtonText}>Cancelar</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.saveButton]}
-                        onPress={handleSaveProfile}
-                      >
-                        <Icon name="content-save" size={18} color="#fff" />
-                        <Text style={styles.actionButtonText}>Guardar</Text>
-                      </TouchableOpacity>
-                    </View>  
-            </ScrollView>
-          )}
+                        <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
+                          {errors.confirmPassword}
+                        </Text>
+                      )}
+                    </View>
+                  </>
+                )}
+                <View style={styles.modalButtonsContainer}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.cancelButtonGeneral]}
+                    onPress={() => {
+                      setEditProfileMode(false);
+                      setErrors({}); // Limpia errores
+                    }}
+                  >
+                    <Icon name="close" size={18} color="#fff" />
+                    <Text style={styles.actionButtonText}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.saveButton]}
+                    onPress={handleSaveProfile}
+                  >
+                    <Icon name="content-save" size={18} color="#fff" />
+                    <Text style={styles.actionButtonText}>Guardar</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </ScrollView>
         </View>
       </Modal>
+      </Portal>
 
      
 
@@ -771,21 +836,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   modalOverlayAccess: {
-  flex: 1,
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: 20,
-  backgroundColor: 'rgba(0,0,0,0.3)', // para oscurecer el fondo del modal nativo
-},
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
   modalContent: {
-  backgroundColor: colors.white,
-  borderRadius: 12,
-  padding: 20,
-  width: '90%',
-  maxHeight: '90%',
-  alignSelf: 'center',
-  elevation: 5,
-},
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 20,
+    width: '100%',
+    maxHeight: '90%',
+    alignSelf: 'center',
+    elevation: 5,
+  },
   modalCloseIconLeft: {
     position: 'absolute',
     top: 10,
@@ -914,7 +978,7 @@ saveButton: {
   backgroundColor: colors.success,
 },
 cancelButtonGeneral: {
-  backgroundColor: colors.danger,
+  backgroundColor: colors.canela,
 },
 actionButtonText: {
   color: '#fff',
@@ -1018,6 +1082,13 @@ userDetailLabel: {
   color: colors.textDark,
   fontSize: 14,
 },
+reloadButton: {
+    padding: 8,
+    borderRadius: 50,
+    backgroundColor: '#f2f2f2',
+    marginLeft: 10,
+    elevation: 2,
+  },
 
 
 });

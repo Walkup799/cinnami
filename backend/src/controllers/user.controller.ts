@@ -9,6 +9,8 @@ import { Types } from 'mongoose';
 import { Card } from "../models/Card";
 import crypto from 'crypto';
 import { sendResetEmail } from "../utils/sendEmail"; 
+import { AccessEvent } from "../models/AccessEvent";
+import mongoose from "mongoose";
 
 
 // CREAR UN NUEVO USUARIO
@@ -327,5 +329,44 @@ export const resetPassword = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error en resetPassword:", error);
     res.status(500).json({ message: "Error al restablecer la contraseña." });
+  }
+};
+
+
+//Móvil Traer usuario por ID
+export const getUserById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Buscar el usuario por ID
+    const user = await User.findById(id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    return res.status(200).json({ user });
+
+  } catch (error) {
+    console.error("Error en getUserById:", error);
+    res.status(500).json({ message: "Error al obtener el usuario." });
+  }
+};
+
+// Busca los eventos de acceso de ese usuario, ordenados por fecha descendente
+export const getUserAccessLogs = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Buscar los eventos de acceso del usuario
+    const accessLogs = await AccessEvent.find({ userId: new mongoose.Types.ObjectId(id) })
+      .sort({ timestamp: -1 })
+      .populate('doorId', 'name')
+      .exec();
+
+    return res.status(200).json({ accessLogs });
+
+  } catch (error) {
+    console.error("Error en getUserAccessLogs:", error);
+    res.status(500).json({ message: "Error al obtener los eventos de acceso." });
   }
 };

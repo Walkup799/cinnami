@@ -7,12 +7,12 @@ import {
   Image,
   FlatList,
   StyleSheet,
-  TextInput
+  TextInput,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../../utils/constants';
-import { Portal, Modal, Provider} from 'react-native-paper';
+import { Portal, Provider, Modal } from 'react-native-paper';
 import CustomAlert from '../../utils/customAlert';
 
 const AdminHomeScreen = () => {
@@ -445,26 +445,25 @@ useEffect(() => {
   };
 
   const renderAccessItem = ({ item }) => (
-  <View style={styles.accessItem}>
-    <View style={{ flex: 1 }}>
-      <Text style={styles.accessName}>{item.name}</Text>
-      <Text style={styles.accessRole}>Rol: {item.role}</Text>
-      <Text style={styles.accessTime}>Hora: {item.time}</Text>
-      <Text style={[
-        styles.accessType,
-        item.accessType === 'Entry' ? styles.entryAccess : styles.exitAccess
-      ]}>
-        {item.accessType === 'Entry' ? '↗️ Entrada' : '↙️ Salida'}
-      </Text>
+    <View style={styles.accessItem}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+        <View style={styles.profileIconCircle}>
+          <Icon name="account" size={32} color={colors.canela} />
+        </View>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={styles.accessName}>{item.name}</Text>
+          <Text style={styles.accessRole}>Rol: {item.role}</Text>
+          <Text style={styles.accessTime}>Hora: {item.time}</Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        style={styles.infoButton}
+        onPress={() => handleShowDetails(item)}
+      >
+        <Icon name="eye-outline" size={24} color={colors.canela} />
+      </TouchableOpacity>
     </View>
-    <TouchableOpacity
-      style={styles.infoButton}
-      onPress={() => handleShowDetails(item)}
-    >
-      <Icon name="eye-outline" size={24} color={colors.canela} />
-    </TouchableOpacity>
-  </View>
-);
+  );
 
   useEffect(() => {
   if (!changePasswordMode) {
@@ -484,47 +483,64 @@ useEffect(() => {
 }, [changePasswordMode]);
 
 
-// Función para obtener accesos recientes 
+// Función para obtener accesos recientes y completar datos de usuario si es necesario
 const fetchRecentAccess = async () => {
   try {
     setIsLoadingAccess(true);
-    
     const token = await AsyncStorage.getItem('userToken');
     const response = await fetch(`${API_BASE_URL}/access-events/recent`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     });
-    
     if (!response.ok) {
       throw new Error('Error al obtener accesos recientes');
     }
-    
     const data = await response.json();
-    
-    // Mapear los datos del backend al formato que espera la UI
-    const mappedEvents = data.events.map(event => ({
-      id: event._id,
-      username: event.user?.username || 'Usuario desconocido',
-      name: `${event.user?.firstName || ''} ${event.user?.lastName || ''}`.trim() || 'Sin nombre',
-      role: event.user?.role === 'admin' ? 'Administrador' : 
-            event.user?.role === 'docente' ? 'Docente' : 
-            event.user?.role === 'estudiante' ? 'Estudiante' : 'Sin rol',
-      time: new Date(event.timestamp).toLocaleTimeString('es-ES', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-      }),
-      door: event.door || 'Puerta desconocida',
-      email: event.user?.email || 'Sin email',
-      firstName: event.user?.firstName || 'Sin nombre',
-      lastName: event.user?.lastName || 'Sin apellido',
-      cardId: event.cardId || event.user?.cardId || 'Sin tarjeta',
-      status: event.user?.status !== false ? 'Activo' : 'Inactivo',
-      accessType: event.accessType || 'Desconocido', // Entry/Exit
-      rawTimestamp: event.timestamp, // Para ordenamiento adicional si es necesario
+
+    // Helper para obtener datos de usuario por ID
+    const fetchUserById = async (userId) => {
+      try {
+        const userRes = await fetch(`${API_BASE_URL}/users/${userId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!userRes.ok) return null;
+        const userData = await userRes.json();
+        return userData.user || null;
+      } catch {
+        return null;
+      }
+    };
+
+    // Para cada evento, si no hay user, buscarlo por userId
+    const mappedEvents = await Promise.all(data.events.map(async (event) => {
+      let user = event.user;
+      if (!user && event.userId) {
+        user = await fetchUserById(event.userId);
+      }
+      return {
+        id: event._id,
+        username: user?.username || event.userId || 'Usuario desconocido',
+        name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || event.userId || 'Sin nombre',
+        role: user?.role === 'admin' ? 'Administrador' : 
+              user?.role === 'docente' ? 'Docente' : 
+              user?.role === 'estudiante' ? 'Estudiante' : 'Sin rol',
+        time: new Date(event.timestamp).toLocaleTimeString('es-ES', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true 
+        }),
+        door: event.door || event.doorId || 'Puerta desconocida',
+        email: user?.email || 'Sin email',
+        firstName: user?.firstName || 'Sin nombre',
+        lastName: user?.lastName || 'Sin apellido',
+        cardId: event.cardUid || event.cardId || user?.cardId || 'Sin tarjeta',
+        status: user?.status !== false ? 'Activo' : 'Inactivo',
+        accessType: event.accessType || 'Desconocido',
+        rawTimestamp: event.timestamp,
+        result: event.result,
+      };
     }));
-    
     setAccessLogs(mappedEvents);
   } catch (error) {
     console.error('Error al cargar accesos recientes:', error);
@@ -580,7 +596,7 @@ const fetchRecentAccess = async () => {
       </View>
 
       {/* Card de estado de la puerta */}
-      {/* Card de estado de la puerta - VERSIÓN MEJORADA */}
+      
 <View style={styles.doorStatusCard}>
   <View style={styles.doorStatusHeader}>
     <Icon name="door" size={24} color={colors.canela} />
@@ -677,15 +693,13 @@ const fetchRecentAccess = async () => {
         />
       )}
     </ScrollView>
-
-    {/* Modal de detalle de usuario  */}
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={modalVisible}
-      onRequestClose={() => setModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
+  <Portal>
+      {/* Modal de detalle de usuario  */}
+      <Modal
+        visible={modalVisible}
+        onDismiss={() => setModalVisible(false)}
+        contentContainerStyle={styles.modalOverlay}
+      >
         <View style={styles.modalContent}>
           <TouchableOpacity
             style={styles.modalCloseIconLeft}
@@ -759,218 +773,226 @@ const fetchRecentAccess = async () => {
             </ScrollView>
           )}
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+    
 
     {/* Modales secundarios en Portal */}
-    <Portal>
-      {/* Modal de perfil */}
-      <Modal
-        visible={profileModalVisible}
-        onDismiss={() => setProfileModalVisible(false)}
-        contentContainerStyle={styles.modalOverlay}
-      >
-        <View style={styles.modalContent}>
-          <TouchableOpacity
-            style={styles.modalCloseIconLeft}
-            onPress={() => setProfileModalVisible(false)}
-          >
-            <Icon name="close" size={24} color={colors.textLight} />
-          </TouchableOpacity>
-          {!editProfileMode ? (
-            <>
-              <View style={styles.userModalHeader}>
-                <View style={styles.userModalAvatar}>
-                  <Icon name="account" size={40} color={colors.primary} />
-                </View>
-                <Text style={styles.modalTitle}>
-                  {userProfile?.firstName} {userProfile?.lastName}
-                </Text>
-                <Text style={styles.userModalEmail}>{userProfile?.email}</Text>
-                <View style={[
-                  styles.userModalRole,
-                  userProfile?.role === 'admin' && styles.userRoleAdmin
-                ]}>
-                  <Text style={styles.userModalRoleText}>
-                    {userProfile?.role === 'admin' ? 'Administrador' : userProfile?.role}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.userDetailsContainer}>
-                <View style={styles.userDetailRow}>
-                  <Icon name="account" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Usuario:</Text>
-                  <Text style={styles.userDetailValue}>{userProfile?.username}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="card-account-details" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Nombres:</Text>
-                  <Text style={styles.userDetailValue}>{userProfile?.firstName}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="card-account-details" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Apellidos:</Text>
-                  <Text style={styles.userDetailValue}>{userProfile?.lastName}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="email" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Correo:</Text>
-                  <Text style={styles.userDetailValue}>{userProfile?.email}</Text>
-                </View>
-                <View style={styles.userDetailRow}>
-                  <Icon name="account-check" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>Estado:</Text>
-                  <Text style={[
-                    styles.userDetailValue,
-                    userProfile?.status !== false ? styles.activeUser : styles.inactiveUser
-                  ]}>
-                    {userProfile?.status !== false ? 'Activo' : 'Inactivo'}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.modalButtonsContainer}>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.editButton]}
-                  onPress={() => setEditProfileMode(true)}
-                >
-                  <Icon name="pencil" size={18} color="white" />
-                  <Text style={styles.actionButtonText}>Editar</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
+    
+    
+
+      {/* Modal de perfil (usando react-native-paper para overlay real) */}
+      
+        <Modal
+          visible={profileModalVisible}
+          onDismiss={() => setProfileModalVisible(false)}
+          contentContainerStyle={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.modalCloseIconLeft}
+              onPress={() => setProfileModalVisible(false)}
+            >
+              <Icon name="close" size={24} color={colors.textLight} />
+            </TouchableOpacity>
             <ScrollView>
-              <Text style={styles.modalTitle}>Editar Perfil</Text>
-              {[
-                { name: 'firstName', label: 'Nombres', icon: 'card-account-details' },
-                { name: 'lastName', label: 'Apellidos', icon: 'card-account-details' },
-                { name: 'username', label: 'Usuario', icon: 'account' },
-                { name: 'email', label: 'Correo', icon: 'email' },
-              ].map(field => (
-                <View key={field.name} style={styles.userDetailRow}>
-                  <Icon name={field.icon} size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                  <Text style={styles.userDetailLabel}>{field.label}:</Text>
-                  <TextInput
-                    style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee' }]}
-                    value={profileForm[field.name]}
-                    onChangeText={text => setProfileForm(prev => ({ ...prev, [field.name]: text }))}
-                  />
-                   {errors[field.name] && (
-                      <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
-                        {errors[field.name]}
+              {!editProfileMode ? (
+                <>
+                  <View style={styles.userModalHeader}>
+                    <View style={styles.userModalAvatar}>
+                      <Icon name="account" size={40} color={colors.primary} />
+                    </View>
+                    <Text style={styles.modalTitle}>
+                      {userProfile?.firstName} {userProfile?.lastName}
+                    </Text>
+                    <Text style={styles.userModalEmail}>{userProfile?.email}</Text>
+                    <View style={[
+                      styles.userModalRole,
+                      userProfile?.role === 'admin' && styles.userRoleAdmin
+                    ]}>
+                      <Text style={styles.userModalRoleText}>
+                        {userProfile?.role === 'admin' ? 'Administrador' : userProfile?.role}
                       </Text>
-                    )}
-                </View>
-              ))}
-              <View style={styles.userDetailRow}>
-                <Icon name="card-bulleted" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                <Text style={styles.userDetailLabel}>Tarjeta:</Text>
-                <TouchableOpacity
-                  style={styles.cardSelectButton}
-                  onPress={() => {
-                    fetchAvailableCards();
-                    setCardModalVisible(true);
-                  }}
-                >
-                  <Text style={styles.cardSelectText}>
-                    {profileForm.cardId ? profileForm.cardId : 'Seleccionar'}
-                  </Text>
-                  <Icon name="chevron-down" size={20} color={colors.primary} />
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity
-                style={styles.togglePasswordButton}
-                onPress={() => setChangePasswordMode(prev => !prev)}
-              >
-                <Text style={styles.togglePasswordText}>
-                  {changePasswordMode ? 'Cancelar cambio de contraseña' : 'Cambiar contraseña'}
-                </Text>
-              </TouchableOpacity>
-
-               {changePasswordMode && (
-                    <>
-                      
-
-                      <View style={styles.userDetailRow}>
-                        <Icon name="lock" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                        <Text style={styles.userDetailLabel}>Nueva contraseña:</Text>
-                        <TextInput
-                          style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee' }]}
-                          value={profileForm.password}
-                          onChangeText={text => {
-                            setProfileForm(prev => {
-                              const updatedForm = { ...prev, password: text };
-                              validateField('password', text);
-                              validateField('confirmPassword', updatedForm.confirmPassword); // Revalida confirmación
-                              return updatedForm;
-                            });
-                          }}
-
-                          secureTextEntry={!showPassword}
-                          placeholder="Nueva contraseña"
-                        />
-                        <TouchableOpacity onPress={() => setShowPassword(prev => !prev)}>
-                          <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} color="#888" />
-                        </TouchableOpacity>
-                        
-                      </View>
-                      {errors.password && (
+                    </View>
+                  </View>
+                  <View style={styles.userDetailsContainer}>
+                    <View style={styles.userDetailRow}>
+                      <Icon name="account" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                      <Text style={styles.userDetailLabel}>Usuario:</Text>
+                      <Text style={styles.userDetailValue}>{userProfile?.username}</Text>
+                    </View>
+                    <View style={styles.userDetailRow}>
+                      <Icon name="card-account-details" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                      <Text style={styles.userDetailLabel}>Nombres:</Text>
+                      <Text style={styles.userDetailValue}>{userProfile?.firstName}</Text>
+                    </View>
+                    <View style={styles.userDetailRow}>
+                      <Icon name="card-account-details" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                      <Text style={styles.userDetailLabel}>Apellidos:</Text>
+                      <Text style={styles.userDetailValue}>{userProfile?.lastName}</Text>
+                    </View>
+                    <View style={styles.userDetailRow}>
+                      <Icon name="email" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                      <Text style={styles.userDetailLabel}>Correo:</Text>
+                      <Text style={styles.userDetailValue}>{userProfile?.email}</Text>
+                    </View>
+                    <View style={styles.userDetailRow}>
+                      <Icon name="account-check" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                      <Text style={styles.userDetailLabel}>Estado:</Text>
+                      <Text style={[
+                        styles.userDetailValue,
+                        userProfile?.status !== false ? styles.activeUser : styles.inactiveUser
+                      ]}>
+                        {userProfile?.status !== false ? 'Activo' : 'Inactivo'}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'center', marginTop: 18 }}>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.editButton, { minWidth: 120 }]}
+                        onPress={() => setEditProfileMode(true)}
+                      >
+                        <Icon name="pencil" size={18} color="white" />
+                        <Text style={styles.actionButtonText}>Editar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.modalTitle}>Editar Perfil</Text>
+                  {[
+                    { name: 'firstName', label: 'Nombres', icon: 'card-account-details' },
+                    { name: 'lastName', label: 'Apellidos', icon: 'card-account-details' },
+                    { name: 'username', label: 'Usuario', icon: 'account' },
+                    { name: 'email', label: 'Correo', icon: 'email' },
+                  ].map(field => (
+                    <View key={field.name} style={styles.userDetailRow}>
+                      <Icon name={field.icon} size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                      <Text style={styles.userDetailLabel}>{field.label}:</Text>
+                      <TextInput
+                        style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee' }]}
+                        value={profileForm[field.name]}
+                        onChangeText={text => setProfileForm(prev => ({ ...prev, [field.name]: text }))}
+                      />
+                       {errors[field.name] && (
                           <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
-                            {errors.password}
+                            {errors[field.name]}
                           </Text>
                         )}
+                    </View>
+                  ))}
+                  <View style={styles.userDetailRow}>
+                    <Icon name="card-bulleted" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                    <Text style={styles.userDetailLabel}>Tarjeta:</Text>
+                    <TouchableOpacity
+                      style={styles.cardSelectButton}
+                      onPress={() => {
+                        fetchAvailableCards();
+                        setCardModalVisible(true);
+                      }}
+                    >
+                      <Text style={styles.cardSelectText}>
+                        {profileForm.cardId ? profileForm.cardId : 'Seleccionar'}
+                      </Text>
+                      <Icon name="chevron-down" size={20} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.togglePasswordButton}
+                    onPress={() => setChangePasswordMode(prev => !prev)}
+                  >
+                    <Text style={styles.togglePasswordText}>
+                      {changePasswordMode ? 'Cancelar cambio de contraseña' : 'Cambiar contraseña'}
+                    </Text>
+                  </TouchableOpacity>
 
-                      <View style={styles.userDetailRow}>
-                        <Icon name="lock-check" size={20} color={colors.textLight} style={styles.userDetailIcon} />
-                        <Text style={styles.userDetailLabel}>Confirmar contraseña:</Text>
-                        <TextInput
-                          style={[styles.editableInput, { borderBottomWidth: 1, borderColor: '#eee' }]}
-                          value={profileForm.confirmPassword}
-                          onChangeText={text => {
-                            setProfileForm(prev => ({ ...prev, confirmPassword: text }));
-                            validateField('confirmPassword', text);
-                          }}
-
-                          secureTextEntry={!showConfirmPassword}
-                          placeholder="Confirmar contraseña"
-                        />
-                        <TouchableOpacity onPress={() => setShowConfirmPassword(prev => !prev)}>
-                          <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#888" />
-                        </TouchableOpacity>
-                        
-                      </View>
-                      {errors.confirmPassword && (
-                          <Text style={{ color: 'red', marginLeft: 30, fontSize: 12 }}>
-                            {errors.confirmPassword}
-                          </Text>
-                        )}
-                    </>
-                  )}
-
-                  <View style={styles.modalButtonsContainer}>
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.cancelButtonGeneral]}
-                        onPress={() => {
-                          setEditProfileMode(false);
-                          setErrors({}); // Limpia errores
-                        }}
-                      >
-                        <Icon name="close" size={18} color="#fff" />
-                        <Text style={styles.actionButtonText}>Cancelar</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.saveButton]}
-                        onPress={handleSaveProfile}
-                      >
-                        <Icon name="content-save" size={18} color="#fff" />
-                        <Text style={styles.actionButtonText}>Guardar</Text>
-                      </TouchableOpacity>
-                    </View>  
+                   {changePasswordMode && (
+                        <>
+                          {/* Nueva contraseña */}
+                          <View style={styles.passwordFieldContainer}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                              <Icon name="lock" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                              <Text style={styles.passwordLabel}>Nueva contraseña</Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <TextInput
+                                style={[styles.editableInput, { flex: 1, borderBottomWidth: 1, borderColor: '#eee' }]}
+                                value={profileForm.password}
+                                onChangeText={text => {
+                                  setProfileForm(prev => {
+                                    const updatedForm = { ...prev, password: text };
+                                    validateField('password', text);
+                                    validateField('confirmPassword', updatedForm.confirmPassword); // Revalida confirmación
+                                    return updatedForm;
+                                  });
+                                }}
+                                secureTextEntry={!showPassword}
+                                placeholder="Nueva contraseña"
+                              />
+                              <TouchableOpacity onPress={() => setShowPassword(prev => !prev)}>
+                                <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} color="#888" />
+                              </TouchableOpacity>
+                            </View>
+                            {errors.password && (
+                              <Text style={{ color: 'red', marginLeft: 4, fontSize: 12 }}>
+                                {errors.password}
+                              </Text>
+                            )}
+                          </View>
+                          {/* Confirmar contraseña */}
+                          <View style={styles.passwordFieldContainer}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                              <Icon name="lock-check" size={20} color={colors.textLight} style={styles.userDetailIcon} />
+                              <Text style={styles.passwordLabel}>Confirmar contraseña</Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <TextInput
+                                style={[styles.editableInput, { flex: 1, borderBottomWidth: 1, borderColor: '#eee' }]}
+                                value={profileForm.confirmPassword}
+                                onChangeText={text => {
+                                  setProfileForm(prev => ({ ...prev, confirmPassword: text }));
+                                  validateField('confirmPassword', text);
+                                }}
+                                secureTextEntry={!showConfirmPassword}
+                                placeholder="Confirmar contraseña"
+                              />
+                              <TouchableOpacity onPress={() => setShowConfirmPassword(prev => !prev)}>
+                                <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#888" />
+                              </TouchableOpacity>
+                            </View>
+                            {errors.confirmPassword && (
+                              <Text style={{ color: 'red', marginLeft: 4, fontSize: 12 }}>
+                                {errors.confirmPassword}
+                              </Text>
+                            )}
+                          </View>
+                        </>
+                      )}
+                      <View style={styles.modalButtonsContainer}>
+                          <TouchableOpacity
+                            style={[styles.actionButton, styles.cancelButtonGeneral]}
+                            onPress={() => {
+                              setEditProfileMode(false);
+                              setErrors({}); // Limpia errores
+                            }}
+                          >
+                            <Icon name="close" size={18} color="#fff" />
+                            <Text style={styles.actionButtonText}>Cancelar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionButton, styles.saveButton]}
+                            onPress={handleSaveProfile}
+                          >
+                            <Icon name="content-save" size={18} color="#fff" />
+                            <Text style={styles.actionButtonText}>Guardar</Text>
+                          </TouchableOpacity>
+                        </View>  
+                </>
+              )}
             </ScrollView>
-          )}
-        </View>
-      </Modal>
+          </View>
+        </Modal>
+      
 
       {/* Modal de selección de tarjeta */}
       <Modal
@@ -1014,7 +1036,8 @@ const fetchRecentAccess = async () => {
           </TouchableOpacity>
         </View>
       </Modal>
-    </Portal>
+      </Portal>
+    
     <CustomAlert
         visible={alertData.visible}
         title={alertData.title}
@@ -1120,11 +1143,13 @@ const styles = StyleSheet.create({
   accessTime: { fontSize: 12, color: colors.canela },
   infoButton: { paddingLeft: 10 },
   modalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 20,
-    maxHeight: '90%',
-  },
+  backgroundColor: colors.white,
+  borderRadius: 12,
+  padding: 20,
+  maxWidth: 400,
+  width: '100%',
+  maxHeight: '90%',
+},
   modalCloseIconLeft: {
     position: 'absolute',
     top: 10,
@@ -1176,6 +1201,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textLight,
   },
+  passwordLabel: {
+    fontSize: 15,
+    color: colors.textLight,
+    fontWeight: 'bold',
+    marginLeft: 4,
+    flex: 1,
+    textAlign: 'left',
+  },
 userDetailValue: {
   flex: 1,
   fontSize: 16,
@@ -1192,17 +1225,22 @@ userDetailValue: {
   fontWeight: '500',
 },
   editableInput: {
-  flex: 1,
-  paddingVertical: 8,
-  paddingHorizontal: 10,
-  borderWidth: 1,
-  borderColor: '#ccc',
-  borderRadius: 8,
-  fontSize: 16,
-  color: '#333',
-  backgroundColor: '#f9f9f9',
-  opacity: 0.9,
-},
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    fontSize: 16,
+    color: '#333',
+    backgroundColor: '#f9f9f9',
+    opacity: 0.9,
+  },
+  passwordFieldContainer: {
+    marginBottom: 10,
+    marginLeft: 0,
+    marginRight: 0,
+  },
 
   activeUser: { color: colors.success },
   inactiveUser: { color: colors.danger },
@@ -1283,7 +1321,7 @@ saveButton: {
   backgroundColor: colors.success,
 },
 cancelButtonGeneral: {
-  backgroundColor: colors.danger,
+  backgroundColor: colors.canela,
 },
 actionButtonText: {
   color: '#fff',
@@ -1309,10 +1347,11 @@ cardPickerModalContent: {
   maxHeight: '80%',  
 },
   modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-    paddingBottom: 2,
+   flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+ 
+  padding: 20,
   },
 // ...existing styles...
 // ...existing styles...
@@ -1500,4 +1539,4 @@ loadingIndicator: {
 
 
 
-export default AdminHomeScreen; 
+export default AdminHomeScreen;

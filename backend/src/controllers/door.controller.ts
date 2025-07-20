@@ -109,3 +109,21 @@ export const getRecentAccessEvents = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Error al obtener accesos recientes", error });
   }
 };
+
+// Obtener todas las puertas
+export const getAllDoors = async (req: Request, res: Response) => {
+  try {
+    let doors;
+    // Si se pasa ?recent=true, filtrar por los últimos 2 días
+    if (req.query.recent === 'true') {
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+      doors = await Door.find({ updatedAt: { $gte: twoDaysAgo } });
+    } else {
+      doors = await Door.find();
+    }
+    res.json({ doors });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener las puertas', error });
+  }
+};

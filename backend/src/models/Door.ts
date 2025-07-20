@@ -16,7 +16,7 @@ const DoorSchema = new Schema<IDoor>({
     required: true,
     default: "close"
   }
-});
+}, { timestamps: true });
 
 export const Door = model<IDoor>('Door', DoorSchema);
 

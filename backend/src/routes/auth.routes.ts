@@ -7,9 +7,9 @@ import {
 } from "../controllers/auth.controller";
 import { verifyToken, isAdmin, isSelfOrAdmin } from "../middlewares/auth"; // Nuevo middleware
 
-import { updateUser, disableUser, enableUser, changePassword, updateUserCardId, forgotPasswordMovil, resetPassword,  createUser, getAllUsers } from "../controllers/user.controller";
+import { updateUser, disableUser, enableUser, changePassword, updateUserCardId, forgotPasswordMovil, resetPassword,  createUser, getAllUsers, getUserById, getUserAccessLogs } from "../controllers/user.controller";
 import { assignCard, createCard, deleteCard, disableCard, enableCard, getAllCards, getAvailableCards, unassignCard, releaseUserCard, getCardByUid, assignCardMovil } from "../controllers/tarjet.controller";
-import { getLatestPersonCount, persons, getLatestDoorState, getRecentAccessEvents } from "../controllers/door.controller";
+import { getLatestPersonCount, persons, getLatestDoorState, getRecentAccessEvents, getAllDoors } from "../controllers/door.controller";
 
 const router = Router();
 
@@ -21,6 +21,8 @@ router.post('/users', createUser); // registro de nuevos usuarios
 // rutas protegidas (requieren token válido)
 router.post('/logout', verifyToken, logout); // cerrar sesión
 router.get('/all-users', verifyToken, getAllUsers);
+router.get('/users/:id', getUserById);
+router.get('/access-events/user/:id', getUserAccessLogs);
 
 //usuarios
 
@@ -53,5 +55,8 @@ router.get('/cards/by-uid/:uid', getCardByUid); // Obtener tarjeta por UID
 router.get('/personCount/latest', getLatestPersonCount); 
 router.get('/door/latest', getLatestDoorState); // Obtener estado más reciente de la puerta
 router.get('/access-events/recent', getRecentAccessEvents); // Obtener últimos 10 accesos recientes
+
+//puertas
+router.get('/doors', getAllDoors); 
 
 export default router;
