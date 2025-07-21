@@ -127,3 +127,84 @@ export const getAllDoors = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error al obtener las puertas', error });
   }
 };
+
+export const updateDoors = async (req: Request, res: Response) => {
+
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    // Validaciones
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'El nombre de la puerta es requerido'
+      });
+    }
+
+    if (name.trim().length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'El nombre de la puerta no puede exceder los 50 caracteres'
+      });
+    }
+
+    // Buscar y actualizar la puerta
+    const updatedDoor = await Door.findByIdAndUpdate(
+      id,
+      { 
+        name: name.trim(),
+        timestamp: new Date() // Actualizar timestamp
+      },
+      { 
+        new: true, // Devolver el documento actualizado
+        runValidators: true // Ejecutar validaciones del esquema
+      }
+    );
+
+    if (!updatedDoor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Puerta no encontrada'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Nombre de puerta actualizado correctamente',
+      door: {
+        _id: updatedDoor._id,
+        doorId: updatedDoor.doorId,
+        name: updatedDoor.name,
+        state: updatedDoor.state,
+        timestamp: updatedDoor.timestamp
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating door name:', error);
+    
+    // Manejar errores de validación de MongoDB
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos inválidos',
+        errors: Object.values(error.errors).map(err => err.message)
+      });
+    }
+
+    // Manejar errores de ObjectId inválido
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de puerta inválido'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+ 
+};

@@ -9,7 +9,7 @@ import { verifyToken, isAdmin, isSelfOrAdmin } from "../middlewares/auth"; // Nu
 
 import { updateUser, disableUser, enableUser, changePassword, updateUserCardId, forgotPasswordMovil, resetPassword,  createUser, getAllUsers, getUserById, getUserAccessLogs } from "../controllers/user.controller";
 import { assignCard, createCard, deleteCard, disableCard, enableCard, getAllCards, getAvailableCards, unassignCard, releaseUserCard, getCardByUid, assignCardMovil } from "../controllers/tarjet.controller";
-import { getLatestPersonCount, persons, getLatestDoorState, getRecentAccessEvents, getAllDoors } from "../controllers/door.controller";
+import { getLatestPersonCount, persons, getLatestDoorState, getRecentAccessEvents, getAllDoors, updateDoors } from "../controllers/door.controller";
 
 const router = Router();
 
@@ -58,5 +58,6 @@ router.get('/access-events/recent', getRecentAccessEvents); // Obtener últimos 
 
 //puertas
 router.get('/doors', getAllDoors); 
+router.put('/doors/:id', updateDoors);
 
 export default router;
